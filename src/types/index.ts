@@ -75,6 +75,9 @@ export interface EngagementData {
   datetime: string;
   influencer: string;
   commentText: string;
+  likesCount?: number;
+  id: string;
+  isInCart?: boolean;
 }
 
 export interface HashtagAnalysis {
@@ -98,4 +101,25 @@ export interface NetworkLink {
 export interface NetworkData {
   nodes: NetworkNode[];
   links: NetworkLink[];
+}
+
+export interface CartItem {
+  id: string;
+  type: 'post' | 'comment';
+  data: InstagramPost | EngagementData;
+}
+
+export interface MemeConfig {
+  about: string;
+  captionStyle: string;
+  customization: string;
+}
+
+export interface GeneratedMeme {
+  id: string;
+  imageUrl: string;
+  config: MemeConfig;
+  timestamp: string;
+  sourcePost?: InstagramPost;
+  sourceComment?: EngagementData;
 }

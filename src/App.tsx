@@ -13,6 +13,8 @@ import HashtagAnalysis from "./pages/HashtagAnalysis";
 import NetworkAnalysis from "./pages/NetworkAnalysis";
 import UploadPage from "./pages/UploadPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import CartPage from "./pages/CartPage";
+import MemeCreation from "./pages/MemeCreation";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -70,6 +72,18 @@ const App = () => (
           <Route path="/upload" element={
             <ProtectedRoute>
               <UploadPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/cart" element={
+            <ProtectedRoute>
+              <CartPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/memes" element={
+            <ProtectedRoute>
+              <MemeCreation />
             </ProtectedRoute>
           } />
           

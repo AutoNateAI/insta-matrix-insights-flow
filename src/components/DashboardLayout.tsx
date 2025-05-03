@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import { useCart } from '../contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,9 +14,12 @@ import {
   LogOut, 
   Menu,
   Search,
-  Upload
+  Upload,
+  ShoppingCart,
+  Image
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from './ui/badge';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -25,6 +29,7 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const { logout, user } = useAuth();
   const { hasData } = useData();
+  const { cartItems } = useCart();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -67,6 +72,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       label: 'Network', 
       path: '/network', 
       icon: <BarChart3 className="h-5 w-5" />,
+      disabled: !hasData
+    },
+    { 
+      label: 'Meme Creation', 
+      path: '/memes', 
+      icon: <Image className="h-5 w-5" />,
       disabled: !hasData
     },
     { 
@@ -118,7 +129,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
           <Instagram className="h-6 w-6 text-instagram-primary hidden md:block" />
           <span className="text-lg font-semibold hidden md:block">Instagram Analytics</span>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-4">
+          <Link to="/cart" className="relative">
+            <Button variant="ghost" size="icon" aria-label="Cart">
+              <ShoppingCart className="h-5 w-5" />
+              {cartItems.length > 0 && (
+                <Badge 
+                  className="absolute -right-1 -top-1 h-5 w-5 flex items-center justify-center p-0 bg-instagram-primary text-white"
+                >
+                  {cartItems.length}
+                </Badge>
+              )}
+            </Button>
+          </Link>
           <span className="text-sm text-muted-foreground">
             {user?.username}
           </span>

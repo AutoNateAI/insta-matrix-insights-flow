@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState } from 'react';
-import { InstagramPost, TimingAnalysis, ContentAnalysis, EngagementData, HashtagAnalysis, NetworkData } from '../types';
+import { InstagramPost, TimingAnalysis, ContentAnalysis, EngagementData, HashtagAnalysis, NetworkData, NetworkNode, NetworkLink } from '../types';
 import { toast } from 'sonner';
 
 interface DataContextType {
@@ -14,6 +14,7 @@ interface DataContextType {
   engagementData: EngagementData[];
   hashtagAnalysis: HashtagAnalysis | null;
   networkData: NetworkData | null;
+  exportReport: (filteredData?: EngagementData[]) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -167,11 +168,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     posts.forEach(post => {
       post.latestComments.forEach(comment => {
         engagement.push({
+          id: comment.id,
           username: comment.ownerUsername,
           postCaption: post.caption,
           datetime: new Date(comment.timestamp).toLocaleString(),
           influencer: post.ownerUsername,
-          commentText: comment.text
+          commentText: comment.text,
+          likesCount: comment.likesCount || 0,
+          isInCart: false
         });
       });
     });
@@ -285,6 +289,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNetworkData({ nodes, links });
   };
 
+  const exportReport = (filteredData?: EngagementData[]) => {
+    const dataToExport = {
+      timing: timingAnalysis,
+      content: contentAnalysis,
+      engagement: filteredData || engagementData,
+      hashtags: hashtagAnalysis,
+      network: networkData,
+      exportedAt: new Date().toISOString()
+    };
+    
+    // Create a JSON blob and trigger download
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `instagram-analytics-report-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Report exported successfully');
+  };
+
   const clearData = () => {
     setPosts([]);
     setTimingAnalysis(null);
@@ -307,7 +335,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         contentAnalysis,
         engagementData,
         hashtagAnalysis,
-        networkData
+        networkData,
+        exportReport
       }}
     >
       {children}

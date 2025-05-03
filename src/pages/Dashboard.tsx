@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { useData } from '@/contexts/DataContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart3, Calendar, Link as LinkIcon, MessageSquare, Upload, User } from 'lucide-react';
+import { BarChart3, Calendar, Image, Link as LinkIcon, MessageSquare, ShoppingCart, Upload, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InstagramPost } from '@/types';
 
@@ -100,7 +100,7 @@ const Dashboard = () => {
             </Card>
           </div>
           
-          {/* Quick Links */}
+          {/* Feature Quick Links */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Link to="/timing">
               <Card className="h-full overflow-hidden hover:border-primary/50 transition-colors cursor-pointer">
@@ -145,6 +145,41 @@ const Dashboard = () => {
                 <CardContent className="pt-4">
                   <p className="text-sm text-muted-foreground">
                     Track top commenters and analyze engagement metrics
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+          
+          {/* New Features */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Link to="/memes">
+              <Card className="h-full overflow-hidden hover:border-primary/50 transition-colors cursor-pointer">
+                <CardHeader className="bg-primary/10 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Image className="h-4 w-4 text-primary" />
+                    Meme Creation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Create custom memes from your Instagram content
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link to="/cart">
+              <Card className="h-full overflow-hidden hover:border-primary/50 transition-colors cursor-pointer">
+                <CardHeader className="bg-primary/10 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4 text-primary" />
+                    Shopping Cart
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    View and manage selected posts and comments
                   </p>
                 </CardContent>
               </Card>
