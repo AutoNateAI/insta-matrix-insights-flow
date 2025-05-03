@@ -86,6 +86,15 @@ const ContentAnalysis = () => {
   
   return (
     <DashboardLayout title="Content Analysis">
+      {/* Posts Table - Moved to top */}
+      <Card className="dashboard-card p-6 mb-6">
+        <h2 className="text-xl font-bold mb-2">Posts</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Browse all posts with details and add to cart
+        </p>
+        <PostsTable posts={posts} />
+      </Card>
+      
       <div className="grid gap-6 md:grid-cols-2">
         <div className="md:col-span-2">
           <Card className="dashboard-card p-6">
@@ -182,17 +191,6 @@ const ContentAnalysis = () => {
               </span>
             ))}
           </div>
-        </Card>
-      </div>
-
-      {/* Posts Table */}
-      <div className="mt-8">
-        <Card className="dashboard-card p-6">
-          <h2 className="text-xl font-bold mb-2">Posts</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Browse all posts with details and add to cart
-          </p>
-          <PostsTable posts={posts} />
         </Card>
       </div>
     </DashboardLayout>
