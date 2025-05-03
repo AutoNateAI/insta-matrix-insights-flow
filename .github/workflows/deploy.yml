@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Update caniuse-lite database
+        run: npm update caniuse-lite browserslist
+
+      - name: Build
+        run: npm run build
+        env:
+          BASE_URL: /insta-matrix-insights-flow/
+
+      # Create a .nojekyll file to prevent GitHub Pages from ignoring files that begin with an underscore
+      - name: Add .nojekyll file
+        run: touch dist/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist      # The folder the action should deploy (Vite builds to 'dist')
+          branch: gh-pages  # The branch the action should deploy to
+          clean: true       # Automatically remove deleted files from the deployment
