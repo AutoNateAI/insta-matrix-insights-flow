@@ -16,7 +16,8 @@ import {
   Search,
   Upload,
   ShoppingCart,
-  Image
+  Image,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
@@ -28,7 +29,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const { logout, user } = useAuth();
-  const { hasData } = useData();
+  const { hasData, exportReport } = useData();
   const { cartItems } = useCart();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -36,6 +37,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleExport = () => {
+    exportReport();
   };
 
   const menuItems = [
@@ -130,6 +135,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
           <span className="text-lg font-semibold hidden md:block">Instagram Analytics</span>
         </div>
         <div className="ml-auto flex items-center gap-4">
+          {hasData && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="hidden md:flex items-center gap-1"
+              onClick={handleExport}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export Report</span>
+            </Button>
+          )}
+          
           <Link to="/cart" className="relative">
             <Button variant="ghost" size="icon" aria-label="Cart">
               <ShoppingCart className="h-5 w-5" />
@@ -142,9 +159,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
               )}
             </Button>
           </Link>
+          
           <span className="text-sm text-muted-foreground">
             {user?.username}
           </span>
+          
           <Button
             variant="ghost"
             size="icon"
