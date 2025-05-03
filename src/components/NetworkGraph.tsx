@@ -1,4 +1,3 @@
-
 import { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import { NetworkData, NetworkNode, NetworkLink } from '@/types';
@@ -20,19 +19,21 @@ interface SimulationNode extends NetworkNode {
 const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Function to render the network graph using D3
   const renderNetworkGraph = () => {
-    if (!data || !svgRef.current || data.nodes.length === 0) return;
+    if (!data || !svgRef.current || data.nodes.length === 0 || !containerRef.current) return;
 
     // Clear any existing SVG content
     d3.select(svgRef.current).selectAll("*").remove();
 
     const svg = d3.select(svgRef.current);
-    const width = svgRef.current.clientWidth;
+    const width = containerRef.current.clientWidth;
     
     // Set SVG height
     svg.attr("height", height);
+    svg.attr("width", width);
 
     // Create a force simulation
     const simulation = d3.forceSimulation(data.nodes as SimulationNode[])
@@ -41,8 +42,12 @@ const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) =
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collide", d3.forceCollide().radius(30));
 
+    // Create a container for all graph elements with a clipping path
+    const graph = svg.append("g")
+      .attr("class", "network-graph-container");
+
     // Create links
-    const links = svg.append("g")
+    const links = graph.append("g")
       .selectAll("line")
       .data(data.links)
       .enter()
@@ -57,7 +62,7 @@ const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) =
       .range(["#E7305B", "#6C5DD3", "#3ABFF8"]);
 
     // Create node groups
-    const nodes = svg.append("g")
+    const nodes = graph.append("g")
       .selectAll(".node")
       .data(data.nodes)
       .enter()
@@ -106,14 +111,19 @@ const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) =
 
     // Update positions on each tick
     simulation.on("tick", () => {
-      links
-        .attr("x1", d => (d.source as SimulationNode).x!)
-        .attr("y1", d => (d.source as SimulationNode).y!)
-        .attr("x2", d => (d.target as SimulationNode).x!)
-        .attr("y2", d => (d.target as SimulationNode).y!);
+      // Keep nodes within the SVG bounds
+      nodes.attr("transform", d => {
+        const x = Math.max(20, Math.min(width - 20, (d as SimulationNode).x!));
+        const y = Math.max(20, Math.min(height - 20, (d as SimulationNode).y!));
+        return `translate(${x},${y})`;
+      });
 
-      nodes
-        .attr("transform", d => `translate(${(d as SimulationNode).x},${(d as SimulationNode).y})`);
+      // Update link positions
+      links
+        .attr("x1", d => Math.max(20, Math.min(width - 20, (d.source as SimulationNode).x!)))
+        .attr("y1", d => Math.max(20, Math.min(height - 20, (d.source as SimulationNode).y!)))
+        .attr("x2", d => Math.max(20, Math.min(width - 20, (d.target as SimulationNode).x!)))
+        .attr("y2", d => Math.max(20, Math.min(height - 20, (d.target as SimulationNode).y!)));
     });
 
     // Functions to handle dragging
@@ -151,7 +161,7 @@ const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) =
   }, [data]);
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden" ref={containerRef}>
       {/* Tooltip */}
       <div 
         ref={tooltipRef} 
@@ -162,7 +172,7 @@ const NetworkGraph = ({ data, onSelectNode, height = 600 }: NetworkGraphProps) =
         <div className="font-medium tooltip-label"></div>
       </div>
       
-      <svg ref={svgRef} width="100%" className="overflow-visible"></svg>
+      <svg ref={svgRef} width="100%" className="overflow-hidden"></svg>
       
       {!data || data.nodes.length === 0 ? (
         <div className="absolute inset-0 flex items-center justify-center">

@@ -128,11 +128,11 @@ const NetworkAnalysis = () => {
         />
         
         {/* Network Graph */}
-        <div className="border rounded-md bg-slate-50 relative">
+        <div className="border rounded-md bg-slate-50 relative overflow-hidden h-[600px]">
           <NetworkGraph 
             data={filteredData || { nodes: [], links: [] }} 
             onSelectNode={setSelectedNode}
-            height={600}
+            height={580}
           />
         </div>
         

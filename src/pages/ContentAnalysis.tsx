@@ -6,15 +6,45 @@ import { Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import PostsTable from '@/components/PostsTable';
+
+// Common words to filter out from keyword analysis
+const COMMON_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'else', 'when',
+  'up', 'at', 'from', 'by', 'for', 'with', 'about', 'against', 'between',
+  'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to',
+  'from', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further',
+  'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all',
+  'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
+  'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+  's', 't', 'can', 'will', 'just', 'don', 'don\'t', 'should', 'now', 'i',
+  'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your',
+  'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she',
+  'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their',
+  'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that',
+  'these', 'those', 'that\'ll', 'am', 'is', 'are', 'was', 'were', 'be',
+  'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
+  'doing', 'would', 'should', 'could', 'ought', 'i\'m', 'you\'re', 'he\'s',
+  'she\'s', 'it\'s', 'we\'re', 'they\'re', 'i\'ve', 'you\'ve', 'we\'ve',
+  'they\'ve', 'i\'d', 'you\'d', 'he\'d', 'she\'d', 'we\'d', 'they\'d',
+  'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 'we\'ll', 'they\'ll', 'isn\'t',
+  'aren\'t', 'wasn\'t', 'weren\'t', 'hasn\'t', 'haven\'t', 'hadn\'t',
+  'doesn\'t', 'don\'t', 'didn\'t', 'won\'t', 'wouldn\'t', 'shan\'t',
+  'shouldn\'t', 'can\'t', 'cannot', 'couldn\'t', 'mustn\'t', 'let\'s',
+  'that\'s', 'who\'s', 'what\'s', 'here\'s', 'there\'s', 'when\'s',
+  'where\'s', 'why\'s', 'how\'s', 'like', 'post', 'comment', 'photo',
+  'instagram', 'follow', 'follower', 'following'
+]);
 
 const ContentAnalysis = () => {
-  const { contentAnalysis, hasData, isLoading } = useData();
+  const { contentAnalysis, hasData, isLoading, posts } = useData();
   
   const COLORS = ['#9b87f5', '#7E69AB', '#6E59A5', '#1A1F2C', '#D6BCFA', '#8B5CF6', '#33C3F0', '#1EAEDB'];
   
-  // Format keyword data for chart
+  // Filter and format keyword data for chart
   const keywordData = contentAnalysis
     ? Object.entries(contentAnalysis.keywords)
+        .filter(([keyword]) => !COMMON_WORDS.has(keyword.toLowerCase()))
         .map(([keyword, count]) => ({ keyword, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 15) // Top 15 keywords
@@ -58,10 +88,10 @@ const ContentAnalysis = () => {
     <DashboardLayout title="Content Analysis">
       <div className="grid gap-6 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Card className="dashboard-card">
-            <h2 className="card-title">Top Keywords</h2>
+          <Card className="dashboard-card p-6">
+            <h2 className="text-xl font-bold mb-2">Top Keywords</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Most frequently used words across all captions
+              Most frequently used words across all captions (common words filtered out)
             </p>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -80,8 +110,8 @@ const ContentAnalysis = () => {
           </Card>
         </div>
         
-        <Card className="dashboard-card">
-          <h2 className="card-title">Keyword Distribution</h2>
+        <Card className="dashboard-card p-6">
+          <h2 className="text-xl font-bold mb-2">Keyword Distribution</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Percentage breakdown of most common keywords
           </p>
@@ -111,8 +141,8 @@ const ContentAnalysis = () => {
           </div>
         </Card>
         
-        <Card className="dashboard-card">
-          <h2 className="card-title">Posting Frequency</h2>
+        <Card className="dashboard-card p-6">
+          <h2 className="text-xl font-bold mb-2">Posting Frequency</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Number of posts per influencer
           </p>
@@ -132,8 +162,8 @@ const ContentAnalysis = () => {
           </div>
         </Card>
         
-        <Card className="dashboard-card">
-          <h2 className="card-title">Keyword Cloud</h2>
+        <Card className="dashboard-card p-6">
+          <h2 className="text-xl font-bold mb-2">Keyword Cloud</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Visual representation of keyword frequency
           </p>
@@ -152,6 +182,17 @@ const ContentAnalysis = () => {
               </span>
             ))}
           </div>
+        </Card>
+      </div>
+
+      {/* Posts Table */}
+      <div className="mt-8">
+        <Card className="dashboard-card p-6">
+          <h2 className="text-xl font-bold mb-2">Posts</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Browse all posts with details and add to cart
+          </p>
+          <PostsTable posts={posts} />
         </Card>
       </div>
     </DashboardLayout>

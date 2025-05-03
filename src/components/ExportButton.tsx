@@ -2,6 +2,7 @@
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useData } from '@/contexts/DataContext';
+import { toast } from 'sonner';
 
 interface ExportButtonProps {
   className?: string;
@@ -13,6 +14,7 @@ const ExportButton = ({ className, variant = "outline" }: ExportButtonProps) => 
   
   const handleExport = () => {
     exportReport();
+    toast.success("Report exported successfully");
   };
   
   return (

@@ -1,23 +1,12 @@
 
-import { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
-import { useData } from '@/contexts/DataContext';
-import { useCart } from '@/contexts/CartContext';
+import { useState, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
+import DashboardLayout from '../components/DashboardLayout';
 import { Card } from '@/components/ui/card';
-import { 
-  ArrowUp,
-  ArrowDown,
-  Download,
-  Filter,
-  Loader,
-  Search,
-  ShoppingCart,
-  Plus
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Loader, Download, Search, Filter, Clock, Users, XCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -26,142 +15,138 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose
-} from '@/components/ui/dialog';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem
-} from '@/components/ui/dropdown-menu';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { EngagementData } from '@/types';
+import { useCart } from '@/contexts/CartContext';
+import ExportButton from '@/components/ExportButton';
 
 const Engagement = () => {
   const { engagementData, hasData, isLoading, exportReport } = useData();
   const { addToCart, isInCart } = useCart();
-  
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filteredData, setFilteredData] = useState<EngagementData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof typeof sortOptions>('dateDesc');
-  const [selectedInfluencers, setSelectedInfluencers] = useState<string[]>([]);
-  const [exportFiltered, setExportFiltered] = useState(true);
-  const [activeFilters, setActiveFilters] = useState(0);
   
-  const itemsPerPage = 10;
+  // Filter states
+  const [minLikes, setMinLikes] = useState(0);
+  const [selectedInfluencer, setSelectedInfluencer] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
   
-  // Sort options
-  const sortOptions = {
-    dateDesc: { label: 'Date (Newest first)', field: 'datetime', direction: 'desc' },
-    dateAsc: { label: 'Date (Oldest first)', field: 'datetime', direction: 'asc' },
-    likesDesc: { label: 'Likes (High to Low)', field: 'likesCount', direction: 'desc' },
-    likesAsc: { label: 'Likes (Low to High)', field: 'likesCount', direction: 'asc' },
-    usernameAsc: { label: 'Username (A-Z)', field: 'username', direction: 'asc' },
-    usernameDesc: { label: 'Username (Z-A)', field: 'username', direction: 'desc' },
-    influencerAsc: { label: 'Influencer (A-Z)', field: 'influencer', direction: 'asc' },
-    influencerDesc: { label: 'Influencer (Z-A)', field: 'influencer', direction: 'desc' },
-  };
+  const pageSize = 10;
   
-  // Get unique influencers for filter
-  const uniqueInfluencers = [...new Set(engagementData.map(item => item.influencer))];
+  // Derive unique influencers from data
+  const influencers = engagementData 
+    ? Array.from(new Set(engagementData.map(item => item.influencer)))
+    : [];
   
-  // Filter and sort data
-  const filteredData = engagementData.filter(item => {
-    // Text search
-    const matchesSearch = searchTerm
-      ? item.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.influencer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.commentText.toLowerCase().includes(searchTerm.toLowerCase())
-      : true;
+  // Apply filters and sorting
+  useEffect(() => {
+    if (!engagementData) return;
     
-    // Influencer filter
-    const matchesInfluencer = selectedInfluencers.length > 0
-      ? selectedInfluencers.includes(item.influencer)
-      : true;
+    let results = [...engagementData];
     
-    return matchesSearch && matchesInfluencer;
-  }).sort((a, b) => {
-    const sortConfig = sortOptions[sortField];
-    const field = sortConfig.field as keyof typeof a;
-    const direction = sortConfig.direction;
-    
-    if (field === 'datetime') {
-      return direction === 'asc'
-        ? new Date(a[field]).getTime() - new Date(b[field]).getTime()
-        : new Date(b[field]).getTime() - new Date(a[field]).getTime();
+    // Apply search filter
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      results = results.filter(
+        item => item.commentText.toLowerCase().includes(lowerCaseSearchTerm) ||
+               item.username.toLowerCase().includes(lowerCaseSearchTerm) ||
+               item.influencer.toLowerCase().includes(lowerCaseSearchTerm)
+      );
     }
     
-    if (typeof a[field] === 'number' && typeof b[field] === 'number') {
-      return direction === 'asc'
-        ? (a[field] as number) - (b[field] as number)
-        : (b[field] as number) - (a[field] as number);
+    // Apply likes filter
+    if (minLikes > 0) {
+      results = results.filter(item => item.likesCount >= minLikes);
     }
     
-    const aVal = String(a[field]).toLowerCase();
-    const bVal = String(b[field]).toLowerCase();
+    // Apply influencer filter
+    if (selectedInfluencer !== 'all') {
+      results = results.filter(item => item.influencer === selectedInfluencer);
+    }
     
-    return direction === 'asc'
-      ? aVal.localeCompare(bVal)
-      : bVal.localeCompare(aVal);
-  });
+    // Apply date filter
+    if (selectedDate) {
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      results = results.filter(item => {
+        const itemDate = new Date(item.datetime);
+        return format(itemDate, 'yyyy-MM-dd') === selectedDateStr;
+      });
+    }
+    
+    // Apply sorting
+    if (sortField) {
+      results.sort((a, b) => {
+        let aValue: any = a[sortField as keyof EngagementData];
+        let bValue: any = b[sortField as keyof EngagementData];
+        
+        // Special case for date strings
+        if (sortField === 'datetime') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    
+    setFilteredData(results);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [engagementData, searchTerm, sortField, sortDirection, minLikes, selectedInfluencer, selectedDate]);
   
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const currentPageData = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+  const currentData = filteredData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
   
-  // Reset to first page when filters change
-  const updateSearchAndResetPage = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
-  
-  // Update filter count
-  const updateFilters = () => {
-    let count = 0;
-    if (searchTerm) count++;
-    if (selectedInfluencers.length > 0) count++;
-    if (sortField !== 'dateDesc') count++;
-    setActiveFilters(count);
-  };
-  
-  // Handle influencer filter toggling
-  const toggleInfluencer = (influencer: string) => {
-    setSelectedInfluencers(prev => {
-      const isSelected = prev.includes(influencer);
-      const newSelection = isSelected
-        ? prev.filter(i => i !== influencer)
-        : [...prev, influencer];
-      
-      setCurrentPage(1);
-      return newSelection;
-    });
-  };
-  
-  // Handle export
-  const handleExport = () => {
-    if (exportFiltered) {
-      exportReport(filteredData);
+  // Toggle sort when column header is clicked
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      exportReport();
+      setSortField(field);
+      setSortDirection('desc'); // Default to descending for new sort field
     }
   };
   
-  // Update the count of active filters when relevant state changes
-  useState(() => {
-    updateFilters();
-  });
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm('');
+    setMinLikes(0);
+    setSelectedInfluencer('all');
+    setSelectedDate(undefined);
+    setSortField(null);
+    setSortDirection('desc');
+  };
   
+  // Export filtered data
+  const handleExportFiltered = () => {
+    exportReport(filteredData);
+  };
+  
+  // If no data uploaded yet
   if (!hasData) {
     return (
       <DashboardLayout title="Engagement Analysis">
@@ -178,6 +163,7 @@ const Engagement = () => {
     );
   }
   
+  // Loading state
   if (isLoading) {
     return (
       <DashboardLayout title="Engagement Analysis">
@@ -191,252 +177,233 @@ const Engagement = () => {
   
   return (
     <DashboardLayout title="Engagement Analysis">
-      <Card className="dashboard-card mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <h2 className="card-title">Engagement Tracking</h2>
+      <Card className="dashboard-card p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div className="flex-1 w-full">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search comments, users or influencers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
           
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={handleExport}
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowFilters(!showFilters)}
             >
-              <Download className="h-4 w-4" />
-              Export Full Report
+              <Filter className="mr-2 h-4 w-4" />
+              Filters {showFilters ? '↑' : '↓'}
             </Button>
             
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                  {activeFilters > 0 && (
-                    <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                      {activeFilters}
-                    </span>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Filter Options</DialogTitle>
-                </DialogHeader>
-                
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Influencer Filter</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {uniqueInfluencers.map(influencer => (
-                        <div key={influencer} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`inf-${influencer}`}
-                            checked={selectedInfluencers.includes(influencer)}
-                            onChange={() => toggleInfluencer(influencer)}
-                            className="rounded border-gray-300"
-                          />
-                          <label htmlFor={`inf-${influencer}`} className="text-sm cursor-pointer">
-                            @{influencer}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Sort By</Label>
-                    <select
-                      value={sortField}
-                      onChange={(e) => {
-                        setSortField(e.target.value as keyof typeof sortOptions);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full border rounded-md px-3 py-2 text-sm"
-                    >
-                      {Object.entries(sortOptions).map(([key, { label }]) => (
-                        <option key={key} value={key}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="export-filtered"
-                      checked={exportFiltered}
-                      onChange={(e) => setExportFiltered(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="export-filtered" className="text-sm">
-                      Only include filtered results in exports
-                    </label>
-                  </div>
-                </div>
-                
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      Close
-                    </Button>
-                  </DialogClose>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => {
-                      setSelectedInfluencers([]);
-                      setSortField('dateDesc');
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                  >
-                    Reset All
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportFiltered}
+              disabled={filteredData.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Filtered Data
+            </Button>
+            
+            {(searchTerm || minLikes > 0 || selectedInfluencer !== 'all' || selectedDate) && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={clearFilters}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
           </div>
         </div>
         
-        <div className="flex items-center space-x-2 mb-6">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by username, influencer, or comment text..."
-            value={searchTerm}
-            onChange={(e) => updateSearchAndResetPage(e.target.value)}
-            className="flex-1"
-          />
-        </div>
-        
-        {filteredData.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            No results match your search criteria.
-          </div>
-        ) : (
-          <>
-            <div className="overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Commenter</TableHead>
-                    <TableHead>Comment</TableHead>
-                    <TableHead>Post Caption</TableHead>
-                    <TableHead>Influencer</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentPageData.map((item, index) => (
-                    <TableRow key={item.id} className="hover:bg-muted/30">
-                      <TableCell>@{item.username}</TableCell>
-                      <TableCell>{item.commentText}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {item.postCaption || "(No caption)"}
-                      </TableCell>
-                      <TableCell>@{item.influencer}</TableCell>
-                      <TableCell>{item.datetime}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-1"
-                          onClick={() => addToCart({
-                            id: item.id,
-                            type: 'comment',
-                            data: item
-                          })}
-                          disabled={isInCart(item.id, 'comment')}
-                        >
-                          {isInCart(item.id, 'comment') ? (
-                            <ShoppingCart className="h-3 w-3" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                          {isInCart(item.id, 'comment') ? 'In Cart' : 'Add to Cart'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        {/* Advanced filters */}
+        {showFilters && (
+          <div className="bg-slate-50 p-4 rounded-md mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="likes-filter" className="mb-2 block">Minimum Likes</Label>
+              <Slider 
+                id="likes-filter"
+                min={0} 
+                max={100} 
+                step={1} 
+                value={[minLikes]} 
+                onValueChange={(values) => setMinLikes(values[0])} 
+                className="mb-1" 
+              />
+              <div className="text-right text-sm text-muted-foreground">{minLikes}+ likes</div>
             </div>
             
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-between items-center mt-6">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
+            <div>
+              <Label htmlFor="influencer-filter" className="mb-2 block">Influencer</Label>
+              <Select 
+                value={selectedInfluencer} 
+                onValueChange={setSelectedInfluencer}
+              >
+                <SelectTrigger id="influencer-filter">
+                  <SelectValue placeholder="All Influencers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Influencers</SelectItem>
+                  {influencers.map(influencer => (
+                    <SelectItem key={influencer} value={influencer}>
+                      @{influencer}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label className="mb-2 block">Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Clock className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
                   </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
         )}
-      </Card>
-      
-      <Card className="dashboard-card">
-        <h2 className="card-title">Engagement Summary</h2>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="font-medium mb-2">Top Commenters</h3>
-            <div className="space-y-2">
-              {Array.from(
-                filteredData.reduce((acc, item) => {
-                  acc.set(item.username, (acc.get(item.username) || 0) + 1);
-                  return acc;
-                }, new Map())
-              )
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5)
-                .map(([username, count], index) => (
-                  <div key={username} className="flex justify-between items-center">
-                    <span>@{username}</span>
-                    <span className="font-medium">{count} comments</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="font-medium mb-2">Most Commented Posts</h3>
-            <div className="space-y-2">
-              {Array.from(
-                filteredData.reduce((acc, item) => {
-                  const key = `${item.influencer}: ${item.postCaption?.substring(0, 30)}${item.postCaption?.length > 30 ? '...' : '' || "(No caption)"}`;
-                  acc.set(key, (acc.get(key) || 0) + 1);
-                  return acc;
-                }, new Map())
-              )
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5)
-                .map(([post, count], index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="truncate max-w-[250px]">{post}</span>
-                    <span className="font-medium">{count} comments</span>
-                  </div>
-                ))}
-            </div>
-          </div>
+        
+        {/* Results summary */}
+        <div className="text-sm text-muted-foreground mb-4 flex items-center">
+          <Users className="mr-2 h-4 w-4" />
+          Found {filteredData.length} comments
+          {searchTerm && <span className="ml-2">matching "{searchTerm}"</span>}
         </div>
+        
+        {/* Table */}
+        <div className="rounded-md border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('username')}
+                >
+                  Username
+                  {sortField === 'username' && (
+                    <span className="ml-2">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </TableHead>
+                <TableHead>Comment</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('datetime')}
+                >
+                  Date & Time
+                  {sortField === 'datetime' && (
+                    <span className="ml-2">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('likesCount')}
+                >
+                  Likes
+                  {sortField === 'likesCount' && (
+                    <span className="ml-2">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('influencer')}
+                >
+                  On Post By
+                  {sortField === 'influencer' && (
+                    <span className="ml-2">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    No engagement data matches your filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentData.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">@{item.username}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{item.commentText}</TableCell>
+                    <TableCell>{item.datetime}</TableCell>
+                    <TableCell>{item.likesCount}</TableCell>
+                    <TableCell>@{item.influencer}</TableCell>
+                    <TableCell>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => addToCart({
+                          id: item.id,
+                          type: 'comment',
+                          data: item
+                        })}
+                        disabled={isInCart(item.id, 'comment')}
+                      >
+                        {isInCart(item.id, 'comment') ? 'In cart' : 'Add to cart'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Pagination */}
+        {filteredData.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length}
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </DashboardLayout>
   );
