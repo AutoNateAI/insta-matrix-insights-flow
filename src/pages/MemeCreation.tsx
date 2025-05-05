@@ -1,460 +1,355 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { useData } from '@/contexts/DataContext';
-import { useMeme } from '@/contexts/MemeContext';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Download, Image, Loader, ZoomIn, Edit } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { InstagramPost, EngagementData, MemeConfig } from '@/types';
+import { Label } from '@/components/ui/label';
+import { Check, ImagePlus, Loader, X, Info } from 'lucide-react';
+import { useMeme } from '@/contexts/MemeContext';
+import { useCart } from '@/contexts/CartContext';
+import { MemeConfig, InstagramPost, EngagementData, CartItem } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const MemeCreation = () => {
-  const { posts, engagementData, hasData } = useData();
-  const { memes, generatingMemes, generateMeme, deleteMeme } = useMeme();
+  const { memes, generateMeme, deleteMeme, generatingMemes } = useMeme();
+  const { cartItems } = useCart();
   
-  const [selectedPost, setSelectedPost] = useState<InstagramPost | null>(null);
-  const [selectedComment, setSelectedComment] = useState<EngagementData | null>(null);
-  const [memeConfig, setMemeConfig] = useState<MemeConfig>({
-    about: '',
-    captionStyle: 'funny',
-    customization: ''
+  const [config, setConfig] = useState<MemeConfig>({
+    prompt: '',
+    style: 'realistic',
+    ratio: '1:1',
+    textPosition: 'bottom'
   });
-  const [fullscreenMeme, setFullscreenMeme] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // Filter posts and comments based on search term
-  const filteredPosts = posts.filter(post => 
-    post.caption?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    post.ownerUsername.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [selectedCartItems, setSelectedCartItems] = useState<CartItem[]>([]);
   
-  const filteredComments = engagementData.filter(comment => 
-    comment.commentText.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    comment.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    comment.influencer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const handleMemeGeneration = () => {
-    if (!memeConfig.about) {
-      return;
+  // Update prompt when selected items change
+  useEffect(() => {
+    if (selectedCartItems.length > 0) {
+      // Extract text from selected items to build a better prompt
+      const extractedText = selectedCartItems.map(item => {
+        if (item.type === 'post') {
+          const post = item.data as InstagramPost;
+          return post.caption || '';
+        } else {
+          const comment = item.data as EngagementData;
+          return comment.commentText || '';
+        }
+      }).join(' ');
+      
+      // Update prompt with extracted text, but don't override user's input if already set
+      setConfig(prev => ({
+        ...prev,
+        prompt: prev.prompt || `Create a meme about: ${extractedText.substring(0, 100)}...`
+      }));
     }
+  }, [selectedCartItems]);
+
+  const handleGenerate = async () => {
+    // Find source materials from selected items
+    const sourcePost = selectedCartItems.find(item => item.type === 'post')?.data as InstagramPost | undefined;
+    const sourceComment = selectedCartItems.find(item => item.type === 'comment')?.data as EngagementData | undefined;
     
-    generateMeme(memeConfig, selectedPost, selectedComment);
+    await generateMeme(config, sourcePost, sourceComment);
   };
 
-  if (!hasData) {
-    return (
-      <DashboardLayout title="Meme Creation">
-        <div className="text-center space-y-4 max-w-lg mx-auto py-12">
-          <div className="h-24 w-24 mx-auto rounded-full bg-muted flex items-center justify-center">
-            <Image className="h-12 w-12 text-muted-foreground" />
-          </div>
-          <h2 className="text-2xl font-bold">No Data Available</h2>
-          <p className="text-muted-foreground">
-            Please upload your Instagram data first to create memes.
-          </p>
-          <Button asChild className="bg-instagram-primary hover:bg-instagram-primary/90">
-            <a href="/upload">Upload Data</a>
-          </Button>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const postItems = cartItems.filter(item => item.type === 'post');
+  const commentItems = cartItems.filter(item => item.type === 'comment');
+  
+  const toggleItemSelection = (item: CartItem) => {
+    if (selectedCartItems.some(i => i.id === item.id && i.type === item.type)) {
+      setSelectedCartItems(prev => prev.filter(i => !(i.id === item.id && i.type === item.type)));
+    } else {
+      setSelectedCartItems(prev => [...prev, item]);
+    }
+  };
+  
+  const isItemSelected = (item: CartItem) => {
+    return selectedCartItems.some(i => i.id === item.id && i.type === item.type);
+  };
   
   return (
     <DashboardLayout title="Meme Creation">
-      <div className="space-y-6">
-        <Tabs defaultValue="create">
-          <TabsList className="mb-4">
-            <TabsTrigger value="create">Create Meme</TabsTrigger>
-            <TabsTrigger value="gallery">Meme Gallery {memes.length > 0 && `(${memes.length})`}</TabsTrigger>
-          </TabsList>
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Generate a Meme</h2>
           
-          <TabsContent value="create" className="space-y-6">
-            <Card className="p-6">
-              <h2 className="text-xl font-bold mb-4">Meme Configuration</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="about">What should the meme be about?</Label>
-                    <Textarea 
-                      id="about"
-                      placeholder="Describe what you want the meme to be about..."
-                      value={memeConfig.about}
-                      onChange={(e) => setMemeConfig({...memeConfig, about: e.target.value})}
-                      className="h-32"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="captionStyle">Caption Style</Label>
-                    <select 
-                      id="captionStyle"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={memeConfig.captionStyle}
-                      onChange={(e) => setMemeConfig({...memeConfig, captionStyle: e.target.value})}
-                    >
-                      <option value="funny">Funny</option>
-                      <option value="sarcastic">Sarcastic</option>
-                      <option value="motivational">Motivational</option>
-                      <option value="dramatic">Dramatic</option>
-                      <option value="minimalist">Minimalist</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="customization">Additional Customization</Label>
-                    <Input 
-                      id="customization"
-                      placeholder="Any specific elements or style requests..."
-                      value={memeConfig.customization}
-                      onChange={(e) => setMemeConfig({...memeConfig, customization: e.target.value})}
-                    />
-                  </div>
-                  
-                  <Button 
-                    onClick={handleMemeGeneration}
-                    className="w-full bg-instagram-primary hover:bg-instagram-primary/90"
-                    disabled={!memeConfig.about}
-                  >
-                    Generate Meme
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label>Source Content (Optional)</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Select a post or comment to use as inspiration
-                    </p>
-                    
-                    <div>
-                      <Input 
-                        placeholder="Search posts and comments..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="mb-4"
-                      />
-                      
-                      <Tabs defaultValue="posts">
-                        <TabsList className="w-full">
-                          <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
-                          <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="posts" className="max-h-64 overflow-y-auto mt-2">
-                          <div className="space-y-2">
-                            {filteredPosts.map(post => (
-                              <div 
-                                key={post.id}
-                                className={`p-2 rounded-lg cursor-pointer ${selectedPost?.id === post.id ? 'bg-primary/20 border border-primary/50' : 'hover:bg-muted'}`}
-                                onClick={() => {
-                                  setSelectedPost(post);
-                                  setSelectedComment(null);
-                                }}
-                              >
-                                <div className="font-medium">@{post.ownerUsername}</div>
-                                <div className="text-sm truncate">{post.caption || '(No caption)'}</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {new Date(post.timestamp).toLocaleDateString()}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="comments" className="max-h-64 overflow-y-auto mt-2">
-                          <div className="space-y-2">
-                            {filteredComments.map(comment => (
-                              <div 
-                                key={comment.id}
-                                className={`p-2 rounded-lg cursor-pointer ${selectedComment?.id === comment.id ? 'bg-primary/20 border border-primary/50' : 'hover:bg-muted'}`}
-                                onClick={() => {
-                                  setSelectedComment(comment);
-                                  setSelectedPost(null);
-                                }}
-                              >
-                                <div className="font-medium">@{comment.username}</div>
-                                <div className="text-sm truncate">{comment.commentText}</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {comment.datetime}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                  </div>
-                  
-                  {(selectedPost || selectedComment) && (
-                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                      <div className="text-sm font-medium">Selected Source:</div>
-                      {selectedPost && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Post by </span>
-                          @{selectedPost.ownerUsername}
-                        </div>
-                      )}
-                      {selectedComment && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Comment by </span>
-                          @{selectedComment.username}
-                        </div>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={() => {
-                          setSelectedPost(null);
-                          setSelectedComment(null);
-                        }}
-                      >
-                        Clear Selection
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
-            
-            {/* Currently Generating Memes */}
-            {generatingMemes.length > 0 && (
-              <Card className="p-6">
-                <h2 className="text-lg font-bold mb-4">
-                  Generating Memes ({generatingMemes.length})
-                </h2>
-                <div className="space-y-4">
-                  {generatingMemes.map(id => (
-                    <div key={id} className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg">
-                      <div className="animate-spin">
-                        <Loader className="h-4 w-4" />
-                      </div>
-                      <div className="flex-grow">
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary animate-pulse" style={{ width: '60%' }}></div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">Processing...</div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-            
-            {/* Recently Generated Memes */}
-            {memes.length > 0 && (
-              <Card className="p-6">
-                <h2 className="text-lg font-bold mb-4">
-                  Recently Generated ({memes.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {memes.slice(0, 8).map(meme => (
-                    <div key={meme.id} className="border rounded-lg overflow-hidden">
-                      <img 
-                        src={meme.imageUrl} 
-                        alt="Generated meme" 
-                        className="w-full aspect-square object-cover"
-                      />
-                      <div className="p-3 bg-muted/10">
-                        <p className="text-sm truncate">{meme.config.about}</p>
-                        <div className="flex mt-2 space-x-2 justify-between">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setFullscreenMeme(meme.imageUrl)}
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = meme.imageUrl;
-                              link.download = `meme-${meme.id}.jpg`;
-                              link.click();
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="gallery">
-            <Card>
-              <div className="p-4 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <h2 className="text-xl font-bold">All Generated Memes</h2>
-                {memes.length > 0 && (
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      // Create a zip file with all memes
-                      console.log("Downloading all memes");
-                    }}
-                    className="whitespace-nowrap"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download All
-                  </Button>
-                )}
-              </div>
-              
-              {memes.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Image className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-medium">No memes generated yet</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Switch to the Create tab to generate your first meme.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-                  {memes.map(meme => (
-                    <div key={meme.id} className="border rounded-lg overflow-hidden">
-                      <img 
-                        src={meme.imageUrl} 
-                        alt="Generated meme" 
-                        className="w-full aspect-square object-cover"
-                      />
-                      <div className="p-3">
-                        <p className="text-sm truncate font-medium">{meme.config.about}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(meme.timestamp).toLocaleString()}
-                        </p>
-                        <div className="flex mt-2 space-x-2 justify-between">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Edit className="h-3.5 w-3.5 mr-1" />
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                              <DialogTitle>Edit Meme</DialogTitle>
-                              <div className="space-y-4 mt-4">
-                                <div>
-                                  <Label htmlFor="edit-about">What should the meme be about?</Label>
-                                  <Textarea 
-                                    id="edit-about"
-                                    defaultValue={meme.config.about}
-                                    className="h-32"
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-style">Caption Style</Label>
-                                  <select 
-                                    id="edit-style"
-                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    defaultValue={meme.config.captionStyle}
-                                  >
-                                    <option value="funny">Funny</option>
-                                    <option value="sarcastic">Sarcastic</option>
-                                    <option value="motivational">Motivational</option>
-                                    <option value="dramatic">Dramatic</option>
-                                    <option value="minimalist">Minimalist</option>
-                                  </select>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <DialogClose asChild>
-                                    <Button variant="outline">Cancel</Button>
-                                  </DialogClose>
-                                  <Button className="bg-instagram-primary">Regenerate</Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setFullscreenMeme(meme.imageUrl)}
-                          >
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = meme.imageUrl;
-                              link.download = `meme-${meme.id}.jpg`;
-                              link.click();
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-      
-      {/* Fullscreen Image Modal */}
-      {fullscreenMeme && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setFullscreenMeme(null)}
-        >
-          <div className="max-w-4xl max-h-full">
-            <img 
-              src={fullscreenMeme} 
-              alt="Fullscreen meme" 
-              className="max-w-full max-h-[90vh] object-contain" 
-            />
-            <div className="mt-4 flex justify-center space-x-4">
-              <Button 
-                variant="outline" 
-                className="bg-white/10 text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const link = document.createElement('a');
-                  link.href = fullscreenMeme;
-                  link.download = `meme-${Date.now()}.jpg`;
-                  link.click();
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button 
-                variant="outline" 
-                className="bg-white/10 text-white"
-                onClick={() => setFullscreenMeme(null)}
-              >
-                Close
+          {cartItems.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed rounded-lg">
+              <Info className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
+              <h3 className="font-medium text-lg mb-2">Your Cart is Empty</h3>
+              <p className="text-muted-foreground mb-4">
+                Add posts or comments to your cart first to use them as meme inspiration.
+              </p>
+              <Button variant="outline" asChild>
+                <a href="/content-analysis">Browse Content</a>
               </Button>
             </div>
+          ) : (
+            <>
+              <div className="mb-6">
+                <Label htmlFor="prompt" className="mb-2 block">Prompt</Label>
+                <Textarea 
+                  id="prompt" 
+                  placeholder="Describe your meme here..."
+                  value={config.prompt}
+                  onChange={(e) => setConfig(prev => ({ ...prev, prompt: e.target.value }))}
+                  className="min-h-[120px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <Label htmlFor="style" className="mb-2 block">Style</Label>
+                  <Select
+                    value={config.style}
+                    onValueChange={(style: 'realistic' | 'cartoon' | 'artistic' | 'vintage') => 
+                      setConfig(prev => ({ ...prev, style }))
+                    }
+                  >
+                    <SelectTrigger id="style">
+                      <SelectValue placeholder="Select style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="realistic">Realistic</SelectItem>
+                      <SelectItem value="cartoon">Cartoon</SelectItem>
+                      <SelectItem value="artistic">Artistic</SelectItem>
+                      <SelectItem value="vintage">Vintage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="ratio" className="mb-2 block">Aspect Ratio</Label>
+                  <Select
+                    value={config.ratio}
+                    onValueChange={(ratio: '1:1' | '4:5' | '16:9') => 
+                      setConfig(prev => ({ ...prev, ratio }))
+                    }
+                  >
+                    <SelectTrigger id="ratio">
+                      <SelectValue placeholder="Select ratio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1:1">Square (1:1)</SelectItem>
+                      <SelectItem value="4:5">Portrait (4:5)</SelectItem>
+                      <SelectItem value="16:9">Landscape (16:9)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <Label htmlFor="text-position" className="mb-2 block">Text Position</Label>
+                <Select
+                  value={config.textPosition}
+                  onValueChange={(textPosition: 'top' | 'bottom' | 'center' | 'none') => 
+                    setConfig(prev => ({ ...prev, textPosition }))
+                  }
+                >
+                  <SelectTrigger id="text-position">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="top">Top</SelectItem>
+                    <SelectItem value="bottom">Bottom</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                    <SelectItem value="none">No Text</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="mb-6">
+                <h3 className="font-medium mb-3">Selected Items from Cart</h3>
+                <Tabs defaultValue="posts">
+                  <TabsList className="mb-2">
+                    <TabsTrigger value="posts">Posts ({postItems.length})</TabsTrigger>
+                    <TabsTrigger value="comments">Comments ({commentItems.length})</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="posts">
+                    <div className="max-h-[200px] overflow-y-auto space-y-2">
+                      {postItems.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">No posts in cart</p>
+                      ) : (
+                        postItems.map((item) => {
+                          const post = item.data as InstagramPost;
+                          return (
+                            <div 
+                              key={item.id}
+                              className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
+                                isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
+                              }`}
+                              onClick={() => toggleItemSelection(item)}
+                            >
+                              <Checkbox 
+                                checked={isItemSelected(item)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">@{post.ownerUsername}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {post.caption || "(No caption)"}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="comments">
+                    <div className="max-h-[200px] overflow-y-auto space-y-2">
+                      {commentItems.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">No comments in cart</p>
+                      ) : (
+                        commentItems.map((item) => {
+                          const comment = item.data as EngagementData;
+                          return (
+                            <div 
+                              key={item.id}
+                              className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
+                                isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
+                              }`}
+                              onClick={() => toggleItemSelection(item)}
+                            >
+                              <Checkbox 
+                                checked={isItemSelected(item)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">@{comment.username}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {comment.commentText}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+              
+              <Button 
+                className="w-full" 
+                onClick={handleGenerate}
+                disabled={!config.prompt || generatingMemes.length > 0 || selectedCartItems.length === 0}
+              >
+                {generatingMemes.length > 0 ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                    Generate Meme
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Generated Memes</h2>
+            {memes.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={() => window.confirm('Delete all memes?') && deleteMeme(memes[0].id)}
+              >
+                Clear All
+              </Button>
+            )}
           </div>
-        </div>
-      )}
+          
+          {generatingMemes.length > 0 && (
+            <div className="border border-dashed p-4 rounded-lg mb-4 flex flex-col items-center justify-center">
+              <Loader className="animate-spin h-8 w-8 mb-2" />
+              <p>Generating your meme...</p>
+            </div>
+          )}
+          
+          <div className="grid gap-4">
+            {memes.length === 0 && generatingMemes.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No memes generated yet. Create your first meme!
+              </div>
+            ) : (
+              memes.map((meme) => (
+                <div key={meme.id} className="border rounded-lg overflow-hidden">
+                  <img 
+                    src={meme.imageUrl} 
+                    alt="Generated meme" 
+                    className="w-full h-auto"
+                  />
+                  <div className="p-3 flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(meme.timestamp).toLocaleString()}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = meme.imageUrl;
+                          link.download = `meme-${meme.id}.jpg`;
+                          link.click();
+                        }}
+                      >
+                        Download
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => deleteMeme(meme.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="px-3 pb-3">
+                    <p className="text-sm font-medium">Prompt:</p>
+                    <p className="text-sm text-muted-foreground">{meme.config.prompt}</p>
+                    
+                    {/* Display source materials if available */}
+                    {(meme.sourcePost || meme.sourceComment) && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-sm font-medium">Based on:</p>
+                        {meme.sourcePost && (
+                          <p className="text-xs text-muted-foreground">
+                            Post from @{meme.sourcePost.ownerUsername}
+                          </p>
+                        )}
+                        {meme.sourceComment && (
+                          <p className="text-xs text-muted-foreground">
+                            Comment by @{meme.sourceComment.username}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+      </div>
     </DashboardLayout>
   );
 };

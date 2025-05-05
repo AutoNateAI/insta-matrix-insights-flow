@@ -11,6 +11,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { useCart } from '@/contexts/CartContext';
+import ExportButton from './ExportButton';
 
 interface NetworkNodeDetailsProps {
   node: NetworkNode;
@@ -111,13 +112,22 @@ const NetworkNodeDetails = ({ node, networkData, onClose }: NetworkNodeDetailsPr
               </p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onClose}
-          >
-            Close
-          </Button>
+          <div className="flex space-x-2">
+            <ExportButton 
+              variant="outline" 
+              size="sm" 
+              filteredData={connections}
+              dataType="network"
+              filename={`network-node-${node.id}.json`}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onClose}
+            >
+              Close
+            </Button>
+          </div>
         </div>
         
         {/* Connection stats */}
@@ -153,6 +163,7 @@ const NetworkNodeDetails = ({ node, networkData, onClose }: NetworkNodeDetailsPr
                 <TableHead>Type</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Relationship</TableHead>
+                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -171,6 +182,47 @@ const NetworkNodeDetails = ({ node, networkData, onClose }: NetworkNodeDetailsPr
                       {connection.relationship}
                     </span>
                   </TableCell>
+                  <TableCell>
+                    {connection.type === 'post' && (
+                      <Button 
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          // Add this post to cart - simplified for demo
+                          const mockPost: InstagramPost = {
+                            id: connection.id.replace('post-', ''),
+                            inputUrl: '',
+                            type: 'post',
+                            shortCode: connection.label,
+                            caption: 'Connected post',
+                            hashtags: [],
+                            mentions: [],
+                            url: '',
+                            commentsCount: 0,
+                            firstComment: '',
+                            latestComments: [],
+                            likesCount: Math.floor(Math.random() * 50),
+                            timestamp: new Date().toISOString(),
+                            childPosts: [],
+                            ownerFullName: '',
+                            ownerUsername: '',
+                            ownerId: '',
+                            isSponsored: false,
+                            taggedUsers: []
+                          };
+                          
+                          addToCart({
+                            id: connection.id,
+                            type: 'post',
+                            data: mockPost
+                          });
+                        }}
+                        disabled={isInCart(connection.id, 'post')}
+                      >
+                        {isInCart(connection.id, 'post') ? 'In Cart' : 'Add to Cart'}
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -178,6 +230,45 @@ const NetworkNodeDetails = ({ node, networkData, onClose }: NetworkNodeDetailsPr
         ) : (
           <p className="text-center text-muted-foreground py-4">No connections found</p>
         )}
+      </div>
+
+      {/* Visual relationship diagram - simplified for this implementation */}
+      <div className="p-4 border-t">
+        <h4 className="font-medium mb-2">Relationship Diagram</h4>
+        <div className="bg-white p-4 border rounded-md flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center ${getBadgeColorClass(node.type)}`}>
+              <span className="font-medium">{node.type}</span>
+            </div>
+            <div className="mt-1 text-sm font-medium">{node.label}</div>
+          </div>
+          
+          {connections.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-4 mt-4">
+              {connections.slice(0, 5).map((connection) => (
+                <div key={connection.id} className="flex flex-col items-center mx-4">
+                  <div className="relative">
+                    <div className="absolute top-[50%] -left-10 w-8 h-0.5 bg-gray-300"></div>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${getBadgeColorClass(connection.type)}`}>
+                      <span className="font-medium text-xs">{connection.type}</span>
+                    </div>
+                  </div>
+                  <div className="mt-1 text-xs">{connection.label}</div>
+                </div>
+              ))}
+              {connections.length > 5 && (
+                <div className="flex flex-col items-center mx-4">
+                  <div className="relative">
+                    <div className="absolute top-[50%] -left-10 w-8 h-0.5 bg-gray-300"></div>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-200">
+                      <span className="font-medium text-xs">+{connections.length - 5} more</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

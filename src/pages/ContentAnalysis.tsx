@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useData } from '@/contexts/DataContext';
 import { Card } from '@/components/ui/card';
@@ -7,6 +8,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import PostsTable from '@/components/PostsTable';
+import ChartWithTable from '@/components/ChartWithTable';
+import DataTable from '@/components/DataTable';
+import { InstagramPost } from '@/types';
 
 // Common words to filter out from keyword analysis
 const COMMON_WORDS = new Set([
@@ -38,6 +42,8 @@ const COMMON_WORDS = new Set([
 
 const ContentAnalysis = () => {
   const { contentAnalysis, hasData, isLoading, posts } = useData();
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [keywordPosts, setKeywordPosts] = useState<InstagramPost[]>([]);
   
   const COLORS = ['#9b87f5', '#7E69AB', '#6E59A5', '#1A1F2C', '#D6BCFA', '#8B5CF6', '#33C3F0', '#1EAEDB'];
   
@@ -56,6 +62,98 @@ const ContentAnalysis = () => {
         .map(([username, count]) => ({ username, count }))
         .sort((a, b) => b.count - a.count)
     : [];
+  
+  // Find posts containing a selected keyword
+  useEffect(() => {
+    if (!selectedKeyword || !posts) {
+      setKeywordPosts([]);
+      return;
+    }
+    
+    const filtered = posts.filter(post => 
+      post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
+    );
+    
+    setKeywordPosts(filtered);
+  }, [selectedKeyword, posts]);
+  
+  // Handle keyword bar click
+  const handleKeywordClick = (data: any) => {
+    setSelectedKeyword(selectedKeyword === data.keyword ? null : data.keyword);
+  };
+  
+  // Handle pie segment click
+  const handlePieClick = (data: any, index: number) => {
+    const keyword = keywordData[index]?.keyword;
+    if (keyword) {
+      setSelectedKeyword(selectedKeyword === keyword ? null : keyword);
+    }
+  };
+  
+  // Define table columns for keywords
+  const keywordPostColumns = [
+    {
+      key: 'ownerUsername',
+      header: 'Username',
+      cell: (post: InstagramPost) => `@${post.ownerUsername}`,
+      isSortable: true
+    },
+    {
+      key: 'caption',
+      header: 'Caption',
+      cell: (post: InstagramPost) => {
+        const caption = post.caption || "(No caption)";
+        if (selectedKeyword) {
+          // Highlight the keyword in the caption
+          const parts = caption.split(new RegExp(`(${selectedKeyword})`, 'gi'));
+          return (
+            <div>
+              {parts.map((part, i) => 
+                part.toLowerCase() === selectedKeyword?.toLowerCase() 
+                  ? <span key={i} className="bg-yellow-200 font-medium">{part}</span> 
+                  : part
+              )}
+            </div>
+          );
+        }
+        return caption;
+      },
+      isSortable: false
+    },
+    {
+      key: 'likesCount',
+      header: 'Likes',
+      cell: (post: InstagramPost) => post.likesCount,
+      isSortable: true
+    },
+    {
+      key: 'commentsCount',
+      header: 'Comments',
+      cell: (post: InstagramPost) => post.commentsCount,
+      isSortable: true
+    },
+    {
+      key: 'timestamp',
+      header: 'Date',
+      cell: (post: InstagramPost) => new Date(post.timestamp).toLocaleDateString(),
+      isSortable: true
+    }
+  ];
+  
+  // Columns for frequency table
+  const frequencyColumns = [
+    {
+      key: 'username',
+      header: 'Username',
+      cell: (item: any) => `@${item.username}`,
+      isSortable: true
+    },
+    {
+      key: 'count',
+      header: 'Posts',
+      isSortable: true
+    }
+  ];
   
   if (!hasData) {
     return (
@@ -97,79 +195,109 @@ const ContentAnalysis = () => {
       
       <div className="grid gap-6 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Card className="dashboard-card p-6">
-            <h2 className="text-xl font-bold mb-2">Top Keywords</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Most frequently used words across all captions (common words filtered out)
-            </p>
+          <ChartWithTable
+            title="Top Keywords"
+            subtitle="Most frequently used words across all captions (common words filtered out)"
+            dataType="posts"
+            initialData={posts}
+            filteredData={keywordPosts}
+            tableColumns={keywordPostColumns}
+            exportFilename={`keyword-posts-${selectedKeyword}.json`}
+            chartComponent={
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={keywordData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="keyword" width={100} />
+                    <Tooltip 
+                      formatter={(value: any) => [`${value} occurrences`, 'Frequency']}
+                      labelFormatter={(keyword) => `Keyword: ${keyword}`}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      fill="#9b87f5" 
+                      name="Occurrences" 
+                      radius={[0, 4, 4, 0]} 
+                      cursor="pointer"
+                      onClick={handleKeywordClick}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            }
+            onChartClick={handleKeywordClick}
+          />
+        </div>
+        
+        <ChartWithTable
+          title="Keyword Distribution"
+          subtitle="Percentage breakdown of most common keywords"
+          dataType="posts"
+          initialData={posts}
+          filteredData={keywordPosts}
+          tableColumns={keywordPostColumns}
+          exportFilename={`keyword-distribution-${selectedKeyword}.json`}
+          chartComponent={
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={keywordData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="keyword" width={100} />
+                <PieChart>
+                  <Pie
+                    data={keywordData.slice(0, 8)} // Top 8 keywords for pie chart
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="count"
+                    nameKey="keyword"
+                    label={({ keyword, percent }) => `${keyword}: ${(percent * 100).toFixed(1)}%`}
+                    labelLine={false}
+                    onClick={handlePieClick}
+                    cursor="pointer"
+                  >
+                    {keywordData.slice(0, 8).map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS[index % COLORS.length]} 
+                        stroke={selectedKeyword === entry.keyword ? '#000' : undefined}
+                        strokeWidth={selectedKeyword === entry.keyword ? 2 : undefined}
+                      />
+                    ))}
+                  </Pie>
                   <Tooltip 
-                    formatter={(value: any) => [`${value} occurrences`, 'Frequency']}
-                    labelFormatter={(keyword) => `Keyword: ${keyword}`}
+                    formatter={(value: any) => [`${value} occurrences`, 'Count']}
+                    labelFormatter={(index: any) => keywordData[index]?.keyword || ''}
                   />
-                  <Bar dataKey="count" fill="#9b87f5" name="Occurrences" radius={[0, 4, 4, 0]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          }
+          onChartClick={handlePieClick}
+        />
+        
+        <ChartWithTable
+          title="Posting Frequency"
+          subtitle="Number of posts per influencer"
+          dataType="posts"
+          initialData={posts}
+          tableColumns={frequencyColumns}
+          exportFilename="posting-frequency-data.json"
+          chartComponent={
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={postingFrequencyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="username" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value: any) => [`${value} posts`, 'Count']}
+                    labelFormatter={(username) => `@${username}`}
+                  />
+                  <Bar dataKey="count" fill="#7E69AB" name="Posts" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Card>
-        </div>
-        
-        <Card className="dashboard-card p-6">
-          <h2 className="text-xl font-bold mb-2">Keyword Distribution</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Percentage breakdown of most common keywords
-          </p>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={keywordData.slice(0, 8)} // Top 8 keywords for pie chart
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="count"
-                  nameKey="keyword"
-                  label={({ keyword, percent }) => `${keyword}: ${(percent * 100).toFixed(1)}%`}
-                  labelLine={false}
-                >
-                  {keywordData.slice(0, 8).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: any) => [`${value} occurrences`, 'Count']}
-                  labelFormatter={(index: any) => keywordData[index]?.keyword || ''}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        
-        <Card className="dashboard-card p-6">
-          <h2 className="text-xl font-bold mb-2">Posting Frequency</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Number of posts per influencer
-          </p>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={postingFrequencyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="username" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: any) => [`${value} posts`, 'Count']}
-                  labelFormatter={(username) => `@${username}`}
-                />
-                <Bar dataKey="count" fill="#7E69AB" name="Posts" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+          }
+        />
         
         <Card className="dashboard-card p-6">
           <h2 className="text-xl font-bold mb-2">Keyword Cloud</h2>
@@ -180,17 +308,34 @@ const ContentAnalysis = () => {
             {keywordData.map((item, index) => (
               <span
                 key={item.keyword}
-                className="inline-block px-3 py-1 rounded-full"
+                className="inline-block px-3 py-1 rounded-full cursor-pointer"
                 style={{
-                  backgroundColor: `${COLORS[index % COLORS.length]}20`,
+                  backgroundColor: selectedKeyword === item.keyword ? 
+                    `${COLORS[index % COLORS.length]}40` : 
+                    `${COLORS[index % COLORS.length]}20`,
                   color: COLORS[index % COLORS.length],
-                  fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`
+                  fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`,
+                  border: selectedKeyword === item.keyword ? '1px solid' : 'none'
                 }}
+                onClick={() => setSelectedKeyword(selectedKeyword === item.keyword ? null : item.keyword)}
               >
                 {item.keyword}
               </span>
             ))}
           </div>
+          
+          {/* Table for selected keyword in cloud */}
+          {selectedKeyword && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="font-medium mb-2">Posts containing "{selectedKeyword}"</h3>
+              <DataTable
+                data={keywordPosts}
+                columns={keywordPostColumns}
+                dataType="posts"
+                showExport={true}
+              />
+            </div>
+          )}
         </Card>
       </div>
     </DashboardLayout>

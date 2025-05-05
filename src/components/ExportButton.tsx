@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 interface ExportButtonProps {
   className?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon"; // Added size property
   filteredData?: any[];
   dataType?: 'all' | 'posts' | 'comments' | 'network' | 'hashtags' | 'timing';
   filename?: string;
@@ -15,6 +16,7 @@ interface ExportButtonProps {
 const ExportButton = ({ 
   className, 
   variant = "outline", 
+  size = "default", // Default size value
   filteredData,
   dataType = 'all',
   filename
@@ -52,6 +54,7 @@ const ExportButton = ({
   return (
     <Button
       variant={variant}
+      size={size}
       className={className}
       onClick={handleExport}
     >
