@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import DataTable from './DataTable';
@@ -42,6 +42,13 @@ const ChartWithTable = ({
   const [selectedData, setSelectedData] = useState<any[] | null>(showDataOnLoad ? initialData : null);
   const [selection, setSelection] = useState<string | null>(null);
   
+  // Update selectedData when filteredData changes
+  useEffect(() => {
+    if (filteredData && filteredData.length > 0) {
+      setSelectedData(filteredData);
+    }
+  }, [filteredData]);
+  
   // Handle chart element click
   const handleChartElementClick = (data: any, index: number) => {
     // Call external handler if provided
@@ -50,7 +57,7 @@ const ChartWithTable = ({
     }
     
     // Update selection
-    const newSelection = data.name || data.hashtag || data.hour || data.day || data.keyword || String(data.label);
+    const newSelection = data.name || data.hashtag || data.hour || data.day || data.keyword || data.username || String(data.label);
     
     if (selection === newSelection) {
       // Toggle off if clicking the same item
@@ -59,7 +66,14 @@ const ChartWithTable = ({
     } else {
       // Select new item
       setSelection(newSelection);
-      setSelectedData(filteredData || initialData);
+      
+      // Wait for filtered data to be updated by the parent component
+      if (filteredData) {
+        console.log(`Setting selected data with ${filteredData.length} items`);
+        setSelectedData(filteredData);
+      } else {
+        console.log('No filtered data available');
+      }
     }
   };
   
@@ -84,6 +98,7 @@ const ChartWithTable = ({
               if (target.tagName === 'rect' || target.tagName === 'path') {
                 // This is just to handle clicks on chart elements
                 // The actual data will be handled by the chart component
+                console.log('Chart element clicked:', target.tagName);
               }
             }}
           >
@@ -126,6 +141,7 @@ const ChartWithTable = ({
                 showSearch={true}
                 showExport={false}
                 emptyMessage={`No ${dataType} data available`}
+                allowAddToCart={true}
               />
             ) : (
               <div className="text-center py-12 text-muted-foreground border rounded-md">

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useData } from '@/contexts/DataContext';
@@ -78,6 +79,7 @@ const ContentAnalysis = () => {
     );
     
     setKeywordBarsData(filtered);
+    console.log(`Keyword bars clicked: ${keyword}, found ${filtered.length} posts`);
   };
   
   // Handle pie segment click
@@ -90,6 +92,7 @@ const ContentAnalysis = () => {
     );
     
     setKeywordPieData(filtered);
+    console.log(`Keyword pie clicked: ${keyword}, found ${filtered.length} posts`);
   };
   
   // Handle frequency chart click
@@ -102,6 +105,7 @@ const ContentAnalysis = () => {
     );
     
     setFrequencyData(filtered);
+    console.log(`Frequency clicked: ${username}, found ${filtered.length} posts`);
   };
   
   // Handle keyword cloud click
@@ -252,7 +256,7 @@ const ContentAnalysis = () => {
             chartComponent={
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={keywordData} layout="vertical">
+                  <BarChart data={keywordData} layout="vertical" onClick={(data) => console.log('Bar chart clicked', data)}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" />
                     <YAxis type="category" dataKey="keyword" width={100} />
@@ -273,6 +277,7 @@ const ContentAnalysis = () => {
               </div>
             }
             onChartClick={handleKeywordBarsClick}
+            showDataOnLoad={false}
           />
         </div>
         
@@ -288,7 +293,7 @@ const ContentAnalysis = () => {
           chartComponent={
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart onClick={(data) => console.log('Pie chart container clicked', data)}>
                   <Pie
                     data={keywordData.slice(0, 8)} // Top 8 keywords for pie chart
                     cx="50%"
@@ -319,6 +324,7 @@ const ContentAnalysis = () => {
             </div>
           }
           onChartClick={handleKeywordPieClick}
+          showDataOnLoad={false}
         />
         
         {/* Posting Frequency Chart with its own table */}
@@ -333,7 +339,7 @@ const ContentAnalysis = () => {
           chartComponent={
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={postingFrequencyData}>
+                <BarChart data={postingFrequencyData} onClick={(data) => console.log('Frequency chart clicked', data)}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="username" />
                   <YAxis />
@@ -354,6 +360,7 @@ const ContentAnalysis = () => {
             </div>
           }
           onChartClick={handleFrequencyClick}
+          showDataOnLoad={false}
         />
         
         {/* Keyword Cloud Card with integrated table */}
