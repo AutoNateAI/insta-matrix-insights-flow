@@ -3,19 +3,12 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useData } from '@/contexts/DataContext';
 import { Card } from '@/components/ui/card';
-import { Loader, Filter, Download } from 'lucide-react';
+import { Loader, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
-import ExportButton from '@/components/ExportButton';
+import ChartWithTable from '@/components/ChartWithTable';
+import { InstagramPost } from '@/types';
 
 const TimingAnalysis = () => {
   const { timingAnalysis, hasData, isLoading, posts } = useData();
@@ -23,6 +16,9 @@ const TimingAnalysis = () => {
   const [selectedHour, setSelectedHour] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
+  const [hourlyFilteredData, setHourlyFilteredData] = useState<any[]>([]);
+  const [daysFilteredData, setDaysFilteredData] = useState<any[]>([]);
+  const [hoursTableData, setHoursTableData] = useState<any[]>([]);
   
   const COLORS = ['#9b87f5', '#7E69AB', '#6E59A5', '#1A1F2C', '#D6BCFA', '#8B5CF6'];
   
@@ -70,16 +66,63 @@ const TimingAnalysis = () => {
   // Handle bar click in hourly chart
   const handleHourClick = (data: any) => {
     const hour = data.hour.split(':')[0];
-    setSelectedHour(selectedHour === hour ? null : hour);
-    setSelectedDay(null); // Clear day selection when hour is selected
+    
+    if (selectedHour === hour) {
+      setSelectedHour(null);
+      setHourlyFilteredData([]);
+    } else {
+      setSelectedHour(hour);
+      setSelectedDay(null); // Clear day selection when hour is selected
+      
+      if (!posts) return;
+      
+      const filtered = posts.filter(post => {
+        const postDate = new Date(post.timestamp);
+        return postDate.getHours() === parseInt(hour);
+      });
+      
+      setHourlyFilteredData(filtered);
+    }
   };
   
   // Handle pie segment click in day chart
   const handleDayClick = (data: any, index: number) => {
     const day = bestDaysData[index]?.day;
-    if (day) {
-      setSelectedDay(selectedDay === day ? null : day);
+    if (!day || !posts) return;
+    
+    if (selectedDay === day) {
+      setSelectedDay(null);
+      setDaysFilteredData([]);
+    } else {
+      setSelectedDay(day);
       setSelectedHour(null); // Clear hour selection when day is selected
+      
+      const filtered = posts.filter(post => {
+        const postDate = new Date(post.timestamp);
+        return postDate.toLocaleDateString('en-US', { weekday: 'long' }) === day;
+      });
+      
+      setDaysFilteredData(filtered);
+    }
+  };
+
+  // Handle hours table click
+  const handleHoursTableClick = (hour: string) => {
+    if (!hour || !posts) return;
+    
+    if (selectedHour === hour) {
+      setSelectedHour(null);
+      setHoursTableData([]);
+    } else {
+      setSelectedHour(hour);
+      setSelectedDay(null); // Clear day selection
+      
+      const filtered = posts.filter(post => {
+        const postDate = new Date(post.timestamp);
+        return postDate.getHours() === parseInt(hour);
+      });
+      
+      setHoursTableData(filtered);
     }
   };
   
@@ -87,8 +130,45 @@ const TimingAnalysis = () => {
   const handleResetFilters = () => {
     setSelectedHour(null);
     setSelectedDay(null);
+    setHourlyFilteredData([]);
+    setDaysFilteredData([]);
+    setHoursTableData([]);
   };
-  
+
+  // Define table columns for timing posts
+  const postColumns = [
+    {
+      key: 'timestamp',
+      header: 'Time',
+      cell: (post: InstagramPost) => new Date(post.timestamp).toLocaleString(),
+      isSortable: true
+    },
+    {
+      key: 'ownerUsername',
+      header: 'Username',
+      cell: (post: InstagramPost) => `@${post.ownerUsername}`,
+      isSortable: true
+    },
+    {
+      key: 'caption',
+      header: 'Caption',
+      cell: (post: InstagramPost) => post.caption || "(No caption)",
+      isSortable: false
+    },
+    {
+      key: 'likesCount',
+      header: 'Likes',
+      cell: (post: InstagramPost) => post.likesCount,
+      isSortable: true
+    },
+    {
+      key: 'commentsCount',
+      header: 'Comments',
+      cell: (post: InstagramPost) => post.commentsCount,
+      isSortable: true
+    }
+  ];
+
   if (!hasData) {
     return (
       <DashboardLayout title="Timing Analysis">
@@ -136,41 +216,34 @@ const TimingAnalysis = () => {
                 <Filter className="h-4 w-4 mr-1" />
                 Clear Filter
               </Button>
-              <ExportButton 
-                variant="outline" 
-                size="sm" 
-                filteredData={filteredPosts}
-                dataType="posts"
-                filename={`posts-timing-${selectedHour || 'all'}-${selectedDay || 'all'}.json`}
-              />
             </div>
           </div>
           {filteredPosts.length > 0 ? (
-            <div className="p-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Caption</TableHead>
-                    <TableHead>Likes</TableHead>
-                    <TableHead>Comments</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="p-4 overflow-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2">Timestamp</th>
+                    <th className="text-left p-2">Username</th>
+                    <th className="text-left p-2">Caption</th>
+                    <th className="text-left p-2">Likes</th>
+                    <th className="text-left p-2">Comments</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {filteredPosts.map((post) => (
-                    <TableRow key={post.id}>
-                      <TableCell>{new Date(post.timestamp).toLocaleString()}</TableCell>
-                      <TableCell>@{post.ownerUsername}</TableCell>
-                      <TableCell className="max-w-[250px] truncate">
+                    <tr key={post.id} className="border-b">
+                      <td className="p-2">{new Date(post.timestamp).toLocaleString()}</td>
+                      <td className="p-2">@{post.ownerUsername}</td>
+                      <td className="p-2 max-w-[250px] truncate">
                         {post.caption || "(No caption)"}
-                      </TableCell>
-                      <TableCell>{post.likesCount}</TableCell>
-                      <TableCell>{post.commentsCount}</TableCell>
-                    </TableRow>
+                      </td>
+                      <td className="p-2">{post.likesCount}</td>
+                      <td className="p-2">{post.commentsCount}</td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="p-4 text-center text-muted-foreground">
@@ -182,145 +255,132 @@ const TimingAnalysis = () => {
       
       <div className="grid gap-6 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Card className="dashboard-card">
-            <div className="p-4 pb-0 flex justify-between items-center">
-              <div>
-                <h2 className="card-title">24-Hour Activity Pattern</h2>
-                <p className="text-sm text-muted-foreground">
-                  Comment activity patterns throughout the day (all times in 24-hour format).
-                  <span className="font-medium ml-1">Click on a bar to see posts for that hour.</span>
-                </p>
+          <ChartWithTable
+            title="24-Hour Activity Pattern"
+            subtitle="Comment activity patterns throughout the day (all times in 24-hour format). Click on a bar to see posts for that hour."
+            dataType="posts"
+            initialData={posts}
+            filteredData={hourlyFilteredData}
+            tableColumns={postColumns}
+            exportFilename="hourly-activity-posts.json"
+            chartComponent={
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hourlyActivityData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="hour" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: any) => [`${value} interactions`, 'Activity']}
+                      labelFormatter={(label) => `Hour: ${label}`}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      fill="#9b87f5" 
+                      name="Activity" 
+                      radius={[4, 4, 0, 0]} 
+                      onClick={handleHourClick}
+                      cursor="pointer"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <ExportButton 
-                variant="outline" 
-                size="sm" 
-                filteredData={hourlyActivityData}
-                dataType="timing"
-                filename="hourly-activity-data.json"
-              />
-            </div>
-            <div className="h-[300px] p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hourlyActivityData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="hour" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: any) => [`${value} interactions`, 'Activity']}
-                    labelFormatter={(label) => `Hour: ${label}`}
-                  />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#9b87f5" 
-                    name="Activity" 
-                    radius={[4, 4, 0, 0]} 
-                    onClick={handleHourClick}
-                    cursor="pointer"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+            }
+            onChartClick={handleHourClick}
+          />
         </div>
         
-        <Card className="dashboard-card">
-          <div className="p-4 pb-0 flex justify-between items-center">
-            <div>
-              <h2 className="card-title">Best Days to Post</h2>
-              <p className="text-sm text-muted-foreground">
-                Days with the highest engagement levels.
-                <span className="font-medium ml-1">Click on a segment to see posts for that day.</span>
-              </p>
+        <ChartWithTable
+          title="Best Days to Post"
+          subtitle="Days with the highest engagement levels. Click on a segment to see posts for that day."
+          dataType="posts"
+          initialData={posts}
+          filteredData={daysFilteredData}
+          tableColumns={postColumns}
+          exportFilename="best-days-posts.json"
+          chartComponent={
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={bestDaysData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="count"
+                    nameKey="day"
+                    label={({ day, count, percent }) => `${day}: ${(percent * 100).toFixed(0)}%`}
+                    onClick={handleDayClick}
+                    cursor="pointer"
+                  >
+                    {bestDaysData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS[index % COLORS.length]} 
+                        stroke={selectedDay === entry.day ? '#000' : undefined}
+                        strokeWidth={selectedDay === entry.day ? 2 : undefined}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: any) => [`${value} interactions`, 'Count']}
+                    labelFormatter={(index: any) => bestDaysData[index].day}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <ExportButton 
-              variant="outline" 
-              size="sm" 
-              filteredData={bestDaysData}
-              dataType="timing"
-              filename="best-days-data.json"
-            />
-          </div>
-          <div className="h-[300px] p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={bestDaysData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="count"
-                  nameKey="day"
-                  label={({ day, count, percent }) => `${day}: ${(percent * 100).toFixed(0)}%`}
-                  onClick={handleDayClick}
-                  cursor="pointer"
-                >
-                  {bestDaysData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                      stroke={selectedDay === entry.day ? '#000' : undefined}
-                      strokeWidth={selectedDay === entry.day ? 2 : undefined}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: any) => [`${value} interactions`, 'Count']}
-                  labelFormatter={(index: any) => bestDaysData[index].day}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+          }
+          onChartClick={handleDayClick}
+        />
         
-        <Card className="dashboard-card">
-          <div className="p-4 pb-0 flex justify-between items-center">
-            <h2 className="card-title">Best Hours to Post</h2>
-            <ExportButton 
-              variant="outline" 
-              size="sm" 
-              filteredData={timingAnalysis?.bestHoursToPost || []}
-              dataType="timing"
-              filename="best-hours-data.json"
-            />
-          </div>
-          <div className="p-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Top hours for maximum engagement (24-hour format)
-            </p>
+        <ChartWithTable
+          title="Best Hours to Post"
+          subtitle="Top hours for maximum engagement (24-hour format). Click on a row to see posts for that hour."
+          dataType="posts"
+          initialData={posts}
+          filteredData={hoursTableData}
+          tableColumns={postColumns}
+          exportFilename="best-hours-posts.json"
+          chartComponent={
             <div className="overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Hour (24h)</TableHead>
-                    <TableHead className="text-right">Interactions</TableHead>
-                    <TableHead className="text-right">Ranking</TableHead>
-                    <TableHead className="text-right"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2">Hour (24h)</th>
+                    <th className="text-right p-2">Interactions</th>
+                    <th className="text-right p-2">Ranking</th>
+                    <th className="text-right p-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
                   {timingAnalysis?.bestHoursToPost.slice(0, 10).map((hour, index) => (
-                    <TableRow 
+                    <tr 
                       key={hour.hour} 
-                      className={`cursor-pointer ${selectedHour === hour.hour ? 'bg-muted' : ''}`}
-                      onClick={() => setSelectedHour(selectedHour === hour.hour ? null : hour.hour)}
+                      className={`cursor-pointer border-b ${selectedHour === hour.hour ? 'bg-muted' : ''}`}
+                      onClick={() => handleHoursTableClick(hour.hour)}
                     >
-                      <TableCell>{hour.hour}:00</TableCell>
-                      <TableCell className="text-right">{hour.count.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">
+                      <td className="p-2">{hour.hour}:00</td>
+                      <td className="text-right p-2">{hour.count.toLocaleString()}</td>
+                      <td className="text-right p-2">
                         <span className={`font-medium ${index < 3 ? "text-instagram-primary" : ""}`}>
                           #{index + 1}
                         </span>
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="text-right p-2">
                         {selectedHour === hour.hour ? 'Selected' : ''}
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
-          </div>
-        </Card>
+          }
+          onChartClick={(data) => {
+            if (data && data.hour) {
+              handleHoursTableClick(data.hour);
+            }
+          }}
+        />
       </div>
       
       <Card className="dashboard-card mt-6">

@@ -47,6 +47,7 @@ const ContentAnalysis = () => {
   const [keywordBarsData, setKeywordBarsData] = useState<InstagramPost[]>([]);
   const [keywordPieData, setKeywordPieData] = useState<InstagramPost[]>([]);
   const [frequencyData, setFrequencyData] = useState<InstagramPost[]>([]);
+  const [cloudKeywordData, setCloudKeywordData] = useState<InstagramPost[]>([]);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   
   const COLORS = ['#9b87f5', '#7E69AB', '#6E59A5', '#1A1F2C', '#D6BCFA', '#8B5CF6', '#33C3F0', '#1EAEDB'];
@@ -110,19 +111,22 @@ const ContentAnalysis = () => {
   
   // Handle keyword cloud click
   const handleKeywordCloudClick = (keyword: string) => {
+    if (!posts) return;
+    
     if (selectedKeyword === keyword) {
       setSelectedKeyword(null);
+      setCloudKeywordData([]);
     } else {
       setSelectedKeyword(keyword);
+      
+      const filtered = posts.filter(post => 
+        post.caption?.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      setCloudKeywordData(filtered);
+      console.log(`Keyword cloud clicked: ${keyword}, found ${filtered.length} posts`);
     }
   };
-  
-  // Find posts containing a selected keyword from the cloud
-  useEffect(() => {
-    if (!selectedKeyword || !posts) {
-      return;
-    }
-  }, [selectedKeyword, posts]);
   
   // Define table columns for keywords
   const keywordPostColumns = [
@@ -363,64 +367,47 @@ const ContentAnalysis = () => {
           showDataOnLoad={false}
         />
         
-        {/* Keyword Cloud Card with integrated table */}
-        <Card className="dashboard-card p-6">
-          <h2 className="text-xl font-bold mb-2">Keyword Cloud</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Visual representation of keyword frequency
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center p-4">
-            {keywordData.map((item, index) => {
-              const isSelected = selectedKeyword === item.keyword;
-              return (
-                <span
-                  key={item.keyword}
-                  className="inline-block px-3 py-1 rounded-full cursor-pointer"
-                  style={{
-                    backgroundColor: isSelected ? 
-                      `${COLORS[index % COLORS.length]}40` : 
-                      `${COLORS[index % COLORS.length]}20`,
-                    color: COLORS[index % COLORS.length],
-                    fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`,
-                    border: isSelected ? '1px solid' : 'none'
-                  }}
-                  onClick={() => handleKeywordCloudClick(item.keyword)}
-                >
-                  {item.keyword}
-                </span>
-              );
-            })}
-          </div>
-          
-          {/* Table for selected keyword in cloud */}
-          {selectedKeyword && (
-            <div className="mt-4 border-t pt-4">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-medium">Posts containing "{selectedKeyword}"</h3>
-                <ExportButton
-                  variant="outline"
-                  size="sm"
-                  filteredData={posts.filter(post => 
-                    post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
-                  )}
-                  dataType="posts"
-                  filename={`keyword-cloud-${selectedKeyword}-posts.json`}
-                />
-              </div>
-              <ScrollArea className="h-[400px]">
-                <DataTable
-                  data={posts.filter(post => 
-                    post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
-                  )}
-                  columns={keywordPostColumns}
-                  dataType="posts"
-                  showExport={false}
-                  allowAddToCart={true}
-                />
-              </ScrollArea>
+        {/* Keyword Cloud Card with integrated table - Now using ChartWithTable */}
+        <ChartWithTable
+          title="Keyword Cloud"
+          subtitle="Visual representation of keyword frequency"
+          dataType="posts"
+          initialData={posts}
+          filteredData={cloudKeywordData}
+          tableColumns={keywordPostColumns}
+          exportFilename="keyword-cloud-posts.json"
+          chartComponent={
+            <div className="flex flex-wrap gap-2 justify-center p-4">
+              {keywordData.map((item, index) => {
+                const isSelected = selectedKeyword === item.keyword;
+                return (
+                  <span
+                    key={item.keyword}
+                    className="inline-block px-3 py-1 rounded-full cursor-pointer"
+                    style={{
+                      backgroundColor: isSelected ? 
+                        `${COLORS[index % COLORS.length]}40` : 
+                        `${COLORS[index % COLORS.length]}20`,
+                      color: COLORS[index % COLORS.length],
+                      fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`,
+                      border: isSelected ? '1px solid' : 'none'
+                    }}
+                    onClick={() => handleKeywordCloudClick(item.keyword)}
+                  >
+                    {item.keyword}
+                  </span>
+                );
+              })}
             </div>
-          )}
-        </Card>
+          }
+          onChartClick={(data) => {
+            // This is a special handler for the keyword cloud
+            if (data && data.keyword) {
+              handleKeywordCloudClick(data.keyword);
+            }
+          }}
+          showDataOnLoad={false}
+        />
       </div>
     </DashboardLayout>
   );

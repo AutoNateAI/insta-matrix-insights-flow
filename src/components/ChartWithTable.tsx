@@ -130,26 +130,28 @@ const ChartWithTable = ({
             )}
           </div>
           
-          {/* Wrap table in ScrollArea for vertical scrolling */}
-          <ScrollArea className="h-[400px]">
-            {selectedData && selectedData.length > 0 ? (
-              <DataTable 
-                data={selectedData}
-                columns={tableColumns}
-                dataType={dataType}
-                itemType={itemType}
-                showSearch={true}
-                showExport={false}
-                emptyMessage={`No ${dataType} data available`}
-                allowAddToCart={true}
-              />
-            ) : (
-              <div className="text-center py-12 text-muted-foreground border rounded-md">
-                {selection 
-                  ? 'No data available for this selection'
-                  : 'Click on a chart element to see related data'}
-              </div>
-            )}
+          {/* Wrap table in ScrollArea for both vertical and horizontal scrolling */}
+          <ScrollArea className="h-[400px] w-full">
+            <div className="min-w-full overflow-auto">
+              {selectedData && selectedData.length > 0 ? (
+                <DataTable 
+                  data={selectedData}
+                  columns={tableColumns}
+                  dataType={dataType}
+                  itemType={itemType}
+                  showSearch={true}
+                  showExport={false}
+                  emptyMessage={`No ${dataType} data available`}
+                  allowAddToCart={true}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground border rounded-md">
+                  {selection 
+                    ? 'No data available for this selection'
+                    : 'Click on a chart element to see related data'}
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </div>
       </div>
