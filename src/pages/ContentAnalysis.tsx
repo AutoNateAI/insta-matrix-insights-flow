@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useData } from '@/contexts/DataContext';
@@ -10,6 +9,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import PostsTable from '@/components/PostsTable';
 import ChartWithTable from '@/components/ChartWithTable';
 import DataTable from '@/components/DataTable';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import ExportButton from '@/components/ExportButton';
 import { InstagramPost } from '@/types';
 
 // Common words to filter out from keyword analysis

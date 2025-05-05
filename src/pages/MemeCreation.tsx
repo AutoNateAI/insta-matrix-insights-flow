@@ -19,12 +19,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const MemeCreation = () => {
   const { memes, generateMeme, deleteMeme, generatingMemes } = useMeme();
   const { cartItems } = useCart();
   
   const [config, setConfig] = useState<MemeConfig>({
+    topText: '',
+    bottomText: '',
+    fontSize: 24,
+    fontColor: '#ffffff',
+    backgroundColor: '#000000',
     prompt: '',
     style: 'realistic',
     ratio: '1:1',
@@ -113,7 +119,7 @@ const MemeCreation = () => {
                   <Label htmlFor="style" className="mb-2 block">Style</Label>
                   <Select
                     value={config.style}
-                    onValueChange={(style: 'realistic' | 'cartoon' | 'artistic' | 'vintage') => 
+                    onValueChange={(style: string) => 
                       setConfig(prev => ({ ...prev, style }))
                     }
                   >
@@ -133,7 +139,7 @@ const MemeCreation = () => {
                   <Label htmlFor="ratio" className="mb-2 block">Aspect Ratio</Label>
                   <Select
                     value={config.ratio}
-                    onValueChange={(ratio: '1:1' | '4:5' | '16:9') => 
+                    onValueChange={(ratio: string) => 
                       setConfig(prev => ({ ...prev, ratio }))
                     }
                   >
@@ -153,7 +159,7 @@ const MemeCreation = () => {
                 <Label htmlFor="text-position" className="mb-2 block">Text Position</Label>
                 <Select
                   value={config.textPosition}
-                  onValueChange={(textPosition: 'top' | 'bottom' | 'center' | 'none') => 
+                  onValueChange={(textPosition: string) => 
                     setConfig(prev => ({ ...prev, textPosition }))
                   }
                 >
@@ -178,67 +184,71 @@ const MemeCreation = () => {
                   </TabsList>
                   
                   <TabsContent value="posts">
-                    <div className="max-h-[200px] overflow-y-auto space-y-2">
-                      {postItems.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-4">No posts in cart</p>
-                      ) : (
-                        postItems.map((item) => {
-                          const post = item.data as InstagramPost;
-                          return (
-                            <div 
-                              key={item.id}
-                              className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
-                                isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
-                              }`}
-                              onClick={() => toggleItemSelection(item)}
-                            >
-                              <Checkbox 
-                                checked={isItemSelected(item)}
-                                className="mt-1"
-                              />
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">@{post.ownerUsername}</div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {post.caption || "(No caption)"}
+                    <ScrollArea className="max-h-[200px]">
+                      <div className="space-y-2">
+                        {postItems.length === 0 ? (
+                          <p className="text-muted-foreground text-center py-4">No posts in cart</p>
+                        ) : (
+                          postItems.map((item) => {
+                            const post = item.data as InstagramPost;
+                            return (
+                              <div 
+                                key={item.id}
+                                className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
+                                  isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
+                                }`}
+                                onClick={() => toggleItemSelection(item)}
+                              >
+                                <Checkbox 
+                                  checked={isItemSelected(item)}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">@{post.ownerUsername}</div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {post.caption || "(No caption)"}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
                   </TabsContent>
                   
                   <TabsContent value="comments">
-                    <div className="max-h-[200px] overflow-y-auto space-y-2">
-                      {commentItems.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-4">No comments in cart</p>
-                      ) : (
-                        commentItems.map((item) => {
-                          const comment = item.data as EngagementData;
-                          return (
-                            <div 
-                              key={item.id}
-                              className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
-                                isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
-                              }`}
-                              onClick={() => toggleItemSelection(item)}
-                            >
-                              <Checkbox 
-                                checked={isItemSelected(item)}
-                                className="mt-1"
-                              />
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">@{comment.username}</div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {comment.commentText}
+                    <ScrollArea className="max-h-[200px]">
+                      <div className="space-y-2">
+                        {commentItems.length === 0 ? (
+                          <p className="text-muted-foreground text-center py-4">No comments in cart</p>
+                        ) : (
+                          commentItems.map((item) => {
+                            const comment = item.data as EngagementData;
+                            return (
+                              <div 
+                                key={item.id}
+                                className={`p-2 border rounded-md flex items-start gap-2 cursor-pointer ${
+                                  isItemSelected(item) ? 'bg-primary/10 border-primary' : ''
+                                }`}
+                                onClick={() => toggleItemSelection(item)}
+                              >
+                                <Checkbox 
+                                  checked={isItemSelected(item)}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">@{comment.username}</div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {comment.commentText}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
                   </TabsContent>
                 </Tabs>
               </div>
