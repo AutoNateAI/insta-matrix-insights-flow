@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 interface ExportButtonProps {
   className?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon"; // Added size property
+  size?: "default" | "sm" | "lg" | "icon";
   filteredData?: any[];
   dataType?: 'all' | 'posts' | 'comments' | 'network' | 'hashtags' | 'timing';
   filename?: string;
@@ -16,7 +16,7 @@ interface ExportButtonProps {
 const ExportButton = ({ 
   className, 
   variant = "outline", 
-  size = "default", // Default size value
+  size = "default",
   filteredData,
   dataType = 'all',
   filename

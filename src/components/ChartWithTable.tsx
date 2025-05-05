@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import DataTable from './DataTable';
 import ExportButton from './ExportButton';
 
@@ -114,23 +115,26 @@ const ChartWithTable = ({
             )}
           </div>
           
-          {selectedData && selectedData.length > 0 ? (
-            <DataTable 
-              data={selectedData}
-              columns={tableColumns}
-              dataType={dataType}
-              itemType={itemType}
-              showSearch={true}
-              showExport={false}
-              emptyMessage={`No ${dataType} data available`}
-            />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground border rounded-md">
-              {selection 
-                ? 'No data available for this selection'
-                : 'Click on a chart element to see related data'}
-            </div>
-          )}
+          {/* Wrap table in ScrollArea for vertical scrolling */}
+          <ScrollArea className="h-[400px]">
+            {selectedData && selectedData.length > 0 ? (
+              <DataTable 
+                data={selectedData}
+                columns={tableColumns}
+                dataType={dataType}
+                itemType={itemType}
+                showSearch={true}
+                showExport={false}
+                emptyMessage={`No ${dataType} data available`}
+              />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground border rounded-md">
+                {selection 
+                  ? 'No data available for this selection'
+                  : 'Click on a chart element to see related data'}
+              </div>
+            )}
+          </ScrollArea>
         </div>
       </div>
     </Card>

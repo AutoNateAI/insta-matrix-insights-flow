@@ -1,4 +1,3 @@
-
 export interface InstagramPost {
   inputUrl: string;
   id: string;
@@ -110,9 +109,17 @@ export interface CartItem {
 }
 
 export interface MemeConfig {
-  about: string;
-  captionStyle: string;
-  customization: string;
+  topText: string;
+  bottomText: string;
+  fontSize: number;
+  fontColor: string;
+  backgroundColor: string;
+  imageSrc?: string;
+  imageFile?: File;
+  prompt: string;
+  style: string;
+  ratio: string;
+  textPosition: string;
 }
 
 export interface GeneratedMeme {

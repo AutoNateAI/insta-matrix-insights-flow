@@ -42,8 +42,10 @@ const COMMON_WORDS = new Set([
 
 const ContentAnalysis = () => {
   const { contentAnalysis, hasData, isLoading, posts } = useData();
+  const [keywordBarsData, setKeywordBarsData] = useState<InstagramPost[]>([]);
+  const [keywordPieData, setKeywordPieData] = useState<InstagramPost[]>([]);
+  const [frequencyData, setFrequencyData] = useState<InstagramPost[]>([]);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
-  const [keywordPosts, setKeywordPosts] = useState<InstagramPost[]>([]);
   
   const COLORS = ['#9b87f5', '#7E69AB', '#6E59A5', '#1A1F2C', '#D6BCFA', '#8B5CF6', '#33C3F0', '#1EAEDB'];
   
@@ -63,32 +65,59 @@ const ContentAnalysis = () => {
         .sort((a, b) => b.count - a.count)
     : [];
   
-  // Find posts containing a selected keyword
-  useEffect(() => {
-    if (!selectedKeyword || !posts) {
-      setKeywordPosts([]);
-      return;
-    }
+  // Handle keyword bar click
+  const handleKeywordBarsClick = (data: any) => {
+    const keyword = data.keyword;
+    
+    // Filter posts by the selected keyword
+    if (!posts) return;
     
     const filtered = posts.filter(post => 
-      post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
+      post.caption?.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    setKeywordPosts(filtered);
-  }, [selectedKeyword, posts]);
-  
-  // Handle keyword bar click
-  const handleKeywordClick = (data: any) => {
-    setSelectedKeyword(selectedKeyword === data.keyword ? null : data.keyword);
+    setKeywordBarsData(filtered);
   };
   
   // Handle pie segment click
-  const handlePieClick = (data: any, index: number) => {
+  const handleKeywordPieClick = (data: any, index: number) => {
     const keyword = keywordData[index]?.keyword;
-    if (keyword) {
-      setSelectedKeyword(selectedKeyword === keyword ? null : keyword);
+    if (!keyword || !posts) return;
+    
+    const filtered = posts.filter(post => 
+      post.caption?.toLowerCase().includes(keyword.toLowerCase())
+    );
+    
+    setKeywordPieData(filtered);
+  };
+  
+  // Handle frequency chart click
+  const handleFrequencyClick = (data: any) => {
+    const username = data.username;
+    if (!username || !posts) return;
+    
+    const filtered = posts.filter(post => 
+      post.ownerUsername === username
+    );
+    
+    setFrequencyData(filtered);
+  };
+  
+  // Handle keyword cloud click
+  const handleKeywordCloudClick = (keyword: string) => {
+    if (selectedKeyword === keyword) {
+      setSelectedKeyword(null);
+    } else {
+      setSelectedKeyword(keyword);
     }
   };
+  
+  // Find posts containing a selected keyword from the cloud
+  useEffect(() => {
+    if (!selectedKeyword || !posts) {
+      return;
+    }
+  }, [selectedKeyword, posts]);
   
   // Define table columns for keywords
   const keywordPostColumns = [
@@ -103,13 +132,15 @@ const ContentAnalysis = () => {
       header: 'Caption',
       cell: (post: InstagramPost) => {
         const caption = post.caption || "(No caption)";
-        if (selectedKeyword) {
+        const keyword = selectedKeyword || "";
+        
+        if (keyword && caption.toLowerCase().includes(keyword.toLowerCase())) {
           // Highlight the keyword in the caption
-          const parts = caption.split(new RegExp(`(${selectedKeyword})`, 'gi'));
+          const parts = caption.split(new RegExp(`(${keyword})`, 'gi'));
           return (
             <div>
               {parts.map((part, i) => 
-                part.toLowerCase() === selectedKeyword?.toLowerCase() 
+                part.toLowerCase() === keyword.toLowerCase() 
                   ? <span key={i} className="bg-yellow-200 font-medium">{part}</span> 
                   : part
               )}
@@ -143,14 +174,27 @@ const ContentAnalysis = () => {
   // Columns for frequency table
   const frequencyColumns = [
     {
-      key: 'username',
+      key: 'ownerUsername',
       header: 'Username',
-      cell: (item: any) => `@${item.username}`,
+      cell: (post: InstagramPost) => `@${post.ownerUsername}`,
       isSortable: true
     },
     {
-      key: 'count',
-      header: 'Posts',
+      key: 'caption',
+      header: 'Caption',
+      cell: (post: InstagramPost) => post.caption || "(No caption)",
+      isSortable: false
+    },
+    {
+      key: 'likesCount',
+      header: 'Likes',
+      cell: (post: InstagramPost) => post.likesCount,
+      isSortable: true
+    },
+    {
+      key: 'commentsCount',
+      header: 'Comments',
+      cell: (post: InstagramPost) => post.commentsCount,
       isSortable: true
     }
   ];
@@ -184,7 +228,7 @@ const ContentAnalysis = () => {
   
   return (
     <DashboardLayout title="Content Analysis">
-      {/* Posts Table - Moved to top */}
+      {/* Main Posts Table - Always visible at the top */}
       <Card className="dashboard-card p-6 mb-6">
         <h2 className="text-xl font-bold mb-2">Posts</h2>
         <p className="text-sm text-muted-foreground mb-4">
@@ -194,15 +238,16 @@ const ContentAnalysis = () => {
       </Card>
       
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Top Keywords Chart with its own table */}
         <div className="md:col-span-2">
           <ChartWithTable
             title="Top Keywords"
             subtitle="Most frequently used words across all captions (common words filtered out)"
             dataType="posts"
             initialData={posts}
-            filteredData={keywordPosts}
+            filteredData={keywordBarsData}
             tableColumns={keywordPostColumns}
-            exportFilename={`keyword-posts-${selectedKeyword}.json`}
+            exportFilename="top-keywords-posts.json"
             chartComponent={
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -220,24 +265,25 @@ const ContentAnalysis = () => {
                       name="Occurrences" 
                       radius={[0, 4, 4, 0]} 
                       cursor="pointer"
-                      onClick={handleKeywordClick}
+                      onClick={handleKeywordBarsClick}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             }
-            onChartClick={handleKeywordClick}
+            onChartClick={handleKeywordBarsClick}
           />
         </div>
         
+        {/* Keyword Distribution Chart with its own table */}
         <ChartWithTable
           title="Keyword Distribution"
           subtitle="Percentage breakdown of most common keywords"
           dataType="posts"
           initialData={posts}
-          filteredData={keywordPosts}
+          filteredData={keywordPieData}
           tableColumns={keywordPostColumns}
-          exportFilename={`keyword-distribution-${selectedKeyword}.json`}
+          exportFilename="keyword-distribution-posts.json"
           chartComponent={
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -251,15 +297,15 @@ const ContentAnalysis = () => {
                     nameKey="keyword"
                     label={({ keyword, percent }) => `${keyword}: ${(percent * 100).toFixed(1)}%`}
                     labelLine={false}
-                    onClick={handlePieClick}
+                    onClick={handleKeywordPieClick}
                     cursor="pointer"
                   >
                     {keywordData.slice(0, 8).map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={COLORS[index % COLORS.length]} 
-                        stroke={selectedKeyword === entry.keyword ? '#000' : undefined}
-                        strokeWidth={selectedKeyword === entry.keyword ? 2 : undefined}
+                        stroke={keywordPieData.length > 0 && keywordData[index]?.keyword === keywordPieData[0]?.caption?.match(/\b\w+\b/g)?.find(word => word.toLowerCase() === keywordData[index]?.keyword.toLowerCase()) ? '#000' : undefined}
+                        strokeWidth={keywordPieData.length > 0 && keywordData[index]?.keyword === keywordPieData[0]?.caption?.match(/\b\w+\b/g)?.find(word => word.toLowerCase() === keywordData[index]?.keyword.toLowerCase()) ? 2 : undefined}
                       />
                     ))}
                   </Pie>
@@ -271,14 +317,16 @@ const ContentAnalysis = () => {
               </ResponsiveContainer>
             </div>
           }
-          onChartClick={handlePieClick}
+          onChartClick={handleKeywordPieClick}
         />
         
+        {/* Posting Frequency Chart with its own table */}
         <ChartWithTable
           title="Posting Frequency"
           subtitle="Number of posts per influencer"
           dataType="posts"
           initialData={posts}
+          filteredData={frequencyData}
           tableColumns={frequencyColumns}
           exportFilename="posting-frequency-data.json"
           chartComponent={
@@ -292,48 +340,76 @@ const ContentAnalysis = () => {
                     formatter={(value: any) => [`${value} posts`, 'Count']}
                     labelFormatter={(username) => `@${username}`}
                   />
-                  <Bar dataKey="count" fill="#7E69AB" name="Posts" radius={[4, 4, 0, 0]} />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#7E69AB" 
+                    name="Posts" 
+                    radius={[4, 4, 0, 0]}
+                    onClick={handleFrequencyClick}
+                    cursor="pointer"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           }
+          onChartClick={handleFrequencyClick}
         />
         
+        {/* Keyword Cloud Card with integrated table */}
         <Card className="dashboard-card p-6">
           <h2 className="text-xl font-bold mb-2">Keyword Cloud</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Visual representation of keyword frequency
           </p>
           <div className="flex flex-wrap gap-2 justify-center p-4">
-            {keywordData.map((item, index) => (
-              <span
-                key={item.keyword}
-                className="inline-block px-3 py-1 rounded-full cursor-pointer"
-                style={{
-                  backgroundColor: selectedKeyword === item.keyword ? 
-                    `${COLORS[index % COLORS.length]}40` : 
-                    `${COLORS[index % COLORS.length]}20`,
-                  color: COLORS[index % COLORS.length],
-                  fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`,
-                  border: selectedKeyword === item.keyword ? '1px solid' : 'none'
-                }}
-                onClick={() => setSelectedKeyword(selectedKeyword === item.keyword ? null : item.keyword)}
-              >
-                {item.keyword}
-              </span>
-            ))}
+            {keywordData.map((item, index) => {
+              const isSelected = selectedKeyword === item.keyword;
+              return (
+                <span
+                  key={item.keyword}
+                  className="inline-block px-3 py-1 rounded-full cursor-pointer"
+                  style={{
+                    backgroundColor: isSelected ? 
+                      `${COLORS[index % COLORS.length]}40` : 
+                      `${COLORS[index % COLORS.length]}20`,
+                    color: COLORS[index % COLORS.length],
+                    fontSize: `${Math.max(0.8, Math.min(2, (item.count / keywordData[0].count) * 2))}rem`,
+                    border: isSelected ? '1px solid' : 'none'
+                  }}
+                  onClick={() => handleKeywordCloudClick(item.keyword)}
+                >
+                  {item.keyword}
+                </span>
+              );
+            })}
           </div>
           
           {/* Table for selected keyword in cloud */}
           {selectedKeyword && (
             <div className="mt-4 border-t pt-4">
-              <h3 className="font-medium mb-2">Posts containing "{selectedKeyword}"</h3>
-              <DataTable
-                data={keywordPosts}
-                columns={keywordPostColumns}
-                dataType="posts"
-                showExport={true}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-medium">Posts containing "{selectedKeyword}"</h3>
+                <ExportButton
+                  variant="outline"
+                  size="sm"
+                  filteredData={posts.filter(post => 
+                    post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
+                  )}
+                  dataType="posts"
+                  filename={`keyword-cloud-${selectedKeyword}-posts.json`}
+                />
+              </div>
+              <ScrollArea className="h-[400px]">
+                <DataTable
+                  data={posts.filter(post => 
+                    post.caption?.toLowerCase().includes(selectedKeyword.toLowerCase())
+                  )}
+                  columns={keywordPostColumns}
+                  dataType="posts"
+                  showExport={false}
+                  allowAddToCart={true}
+                />
+              </ScrollArea>
             </div>
           )}
         </Card>
